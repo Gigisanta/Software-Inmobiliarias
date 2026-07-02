@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RealEstate OS — Documentación</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#111725; --panel2:#0e1420; --border:#1e2839;
+    --text:#e6edf6; --muted:#8a97ab; --accent:#3b82f6; --accent2:#22d3ee;
+    --hot:#f97316; --green:#22c55e; --sidebar-w:320px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; height:100vh; overflow:hidden;
+  }
+  /* Sidebar */
+  aside{
+    width:var(--sidebar-w); min-width:var(--sidebar-w); height:100%;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border-right:1px solid var(--border); display:flex; flex-direction:column;
+  }
+  .brand{padding:20px 20px 14px;border-bottom:1px solid var(--border)}
+  .brand h1{font-size:17px;margin:0;letter-spacing:.3px}
+  .brand .logo{display:flex;align-items:center;gap:10px}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .brand p{margin:6px 0 0;color:var(--muted);font-size:11.5px;line-height:1.5}
+  .search{padding:12px 14px;border-bottom:1px solid var(--border)}
+  .search input{
+    width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+    background:#0a0f1a;color:var(--text);font-size:13px;outline:none;
+  }
+  .search input:focus{border-color:var(--accent)}
+  nav{overflow-y:auto;flex:1;padding:8px 8px 24px}
+  nav a{
+    display:flex;gap:10px;align-items:baseline;padding:9px 12px;margin:2px 4px;
+    border-radius:8px;text-decoration:none;color:var(--text);font-size:13px;line-height:1.35;
+    border:1px solid transparent;cursor:pointer;
+  }
+  nav a:hover{background:#152034}
+  nav a.active{background:#16243c;border-color:#274268}
+  nav a .num{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px;min-width:20px}
+  nav a.active .num{color:var(--accent2)}
+  nav .sec{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:1px;padding:14px 16px 6px}
+  /* Main */
+  main{flex:1;height:100%;overflow-y:auto;scroll-behavior:smooth}
+  .content{max-width:900px;margin:0 auto;padding:42px 52px 120px}
+  #status{color:var(--muted);padding:60px;text-align:center}
+  /* Markdown */
+  .md h1{font-size:30px;margin:.2em 0 .5em;line-height:1.2;border-bottom:1px solid var(--border);padding-bottom:.35em}
+  .md h2{font-size:23px;margin:1.6em 0 .5em;color:#dbe7fb}
+  .md h3{font-size:18px;margin:1.4em 0 .4em;color:#c7d6ee}
+  .md h4{font-size:15px;margin:1.2em 0 .3em;color:var(--accent2)}
+  .md p{line-height:1.75;margin:.7em 0;color:#d3dcea}
+  .md ul,.md ol{line-height:1.75;padding-left:1.4em}
+  .md li{margin:.25em 0}
+  .md a{color:var(--accent2);text-decoration:none}
+  .md a:hover{text-decoration:underline}
+  .md code{background:#0a1120;border:1px solid var(--border);border-radius:5px;padding:.12em .4em;font-size:.87em;font-family:"SF Mono",Consolas,Monaco,monospace}
+  .md pre{background:#0a1120;border:1px solid var(--border);border-radius:10px;padding:16px;overflow-x:auto;line-height:1.55}
+  .md pre code{background:none;border:none;padding:0;font-size:12.5px}
+  .md blockquote{border-left:3px solid var(--accent);margin:1em 0;padding:.4em 1em;background:#0f1930;border-radius:0 8px 8px 0;color:#bcd0ee}
+  .md table{border-collapse:collapse;width:100%;margin:1.2em 0;font-size:13px;display:block;overflow-x:auto}
+  .md th,.md td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+  .md th{background:#132038;color:#dbe7fb;font-weight:600}
+  .md tr:nth-child(even) td{background:#0d1524}
+  .md hr{border:none;border-top:1px solid var(--border);margin:2em 0}
+  .md .mermaid{background:#0d1626;border:1px solid var(--border);border-radius:10px;padding:18px;margin:1.2em 0;text-align:center;overflow-x:auto}
+  .md img{max-width:100%}
+  /* progress bar */
+  #bar{position:fixed;top:0;left:var(--sidebar-w);right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transform-origin:left;transform:scaleX(0);z-index:20;transition:transform .1s}
+  .toolbar{position:sticky;top:0;background:rgba(11,15,23,.82);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 52px;display:flex;justify-content:space-between;align-items:center;z-index:10}
+  .toolbar .crumb{color:var(--muted);font-size:12px}
+  .toolbar .nav-btns{display:flex;gap:8px}
+  .toolbar button{background:#152034;border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer}
+  .toolbar button:hover{background:#1c2c46}
+  .toolbar button:disabled{opacity:.4;cursor:default}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#22304a;border-radius:6px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<aside>
+  <div class="brand">
+    <div class="logo"><span class="dot"></span><h1>RealEstate OS</h1></div>
+    <p>Sistema Operativo para Inmobiliarias · Documentación de producto y arquitectura</p>
+  </div>
+  <div class="search"><input id="q" placeholder="Buscar en el índice…" /></div>
+  <nav id="nav"></nav>
+</aside>
+<main id="main">
+  <div class="toolbar">
+    <span class="crumb" id="crumb">Documentación</span>
+    <div class="nav-btns">
+      <button id="prev">← Anterior</button>
+      <button id="next">Siguiente →</button>
+    </div>
+  </div>
+  <div class="content"><div class="md" id="content"></div><div id="status">Cargando…</div></div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+mermaid.initialize({startOnLoad:false, theme:'dark', themeVariables:{
+  fontFamily:'Segoe UI, sans-serif', primaryColor:'#16243c', primaryTextColor:'#e6edf6',
+  primaryBorderColor:'#274268', lineColor:'#3b82f6', secondaryColor:'#0f1930', tertiaryColor:'#0d1626'
+}});
+
+const DOCS = [
+  {sec:'Inicio'},
+  {f:'README.md', n:'', t:'Índice y resumen ejecutivo'},
+  {sec:'Producto'},
+  {f:'01-vision-y-propuesta-de-valor.md', n:'01', t:'Visión y Propuesta de Valor'},
+  {f:'02-benchmark.md', n:'02', t:'Benchmark competitivo'},
+  {f:'03-personas-y-casos-de-uso.md', n:'03', t:'Personas y Casos de Uso'},
+  {sec:'Arquitectura'},
+  {f:'04-arquitectura-funcional.md', n:'04', t:'Arquitectura Funcional'},
+  {f:'05-arquitectura-tecnica.md', n:'05', t:'Arquitectura Técnica'},
+  {f:'06-modelo-de-datos.md', n:'06', t:'Modelo de Datos'},
+  {f:'07-multi-tenant-seguridad-rbac.md', n:'07', t:'Multi-Tenant, Seguridad y RBAC'},
+  {f:'08-apis.md', n:'08', t:'APIs'},
+  {sec:'Profundidad y Plan'},
+  {f:'09-modulos-clave.md', n:'09', t:'Módulos Clave'},
+  {f:'10-roadmap.md', n:'10', t:'Roadmap MVP / V2 / V3'},
+  {f:'11-riesgos.md', n:'11', t:'Riesgos'},
+  {f:'12-infraestructura-y-escalabilidad.md', n:'12', t:'Infraestructura y Escalabilidad'},
+  {f:'13-ux-ui-y-movil.md', n:'13', t:'UX/UI y App Móvil'},
+  {sec:'Cierre'},
+  {f:'14-mejoras-propuestas.md', n:'14', t:'Mejoras Propuestas'},
+];
+const files = DOCS.filter(d=>d.f);
+
+const navEl = document.getElementById('nav');
+const contentEl = document.getElementById('content');
+const statusEl = document.getElementById('status');
+const crumbEl = document.getElementById('crumb');
+const mainEl = document.getElementById('main');
+
+DOCS.forEach(d=>{
+  if(d.sec){ const s=document.createElement('div'); s.className='sec'; s.textContent=d.sec; navEl.appendChild(s); return; }
+  const a=document.createElement('a'); a.dataset.file=d.f; a.dataset.title=d.t;
+  a.innerHTML=`<span class="num">${d.n||'•'}</span><span>${d.t}</span>`;
+  a.onclick=()=>load(d.f); navEl.appendChild(a);
+});
+
+marked.setOptions({gfm:true, breaks:false});
+
+async function load(file, push=true){
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active', a.dataset.file===file));
+  statusEl.style.display='none'; contentEl.innerHTML='<p style="color:var(--muted)">Cargando…</p>';
+  let raw;
+  try{ raw = await (await fetch(file+'?t='+Date.now())).text(); }
+  catch(e){ contentEl.innerHTML='<p>Error cargando '+file+'</p>'; return; }
+
+  // extract mermaid blocks before marked
+  const blocks=[];
+  raw = raw.replace(/```mermaid\n([\s\S]*?)```/g,(m,code)=>{blocks.push(code);return `\n@@MERMAID${blocks.length-1}@@\n`;});
+  let html = marked.parse(raw);
+  html = html.replace(/@@MERMAID(\d+)@@/g,(m,i)=>`<div class="mermaid">${blocks[i].replace(/</g,'&lt;')}</div>`);
+  contentEl.innerHTML = html;
+
+  contentEl.querySelectorAll('pre code').forEach(b=>{ try{hljs.highlightElement(b);}catch(e){} });
+  // render mermaid
+  const mers=[...contentEl.querySelectorAll('.mermaid')];
+  for(let i=0;i<mers.length;i++){
+    const el=mers[i]; const src=el.textContent;
+    try{ const {svg}=await mermaid.render('m'+Date.now()+i, src); el.innerHTML=svg; }
+    catch(e){ el.innerHTML='<pre style="text-align:left;color:#f88">Diagrama no renderizable:\n'+src.replace(/</g,'&lt;')+'</pre>'; }
+  }
+  // intercept internal .md links
+  contentEl.querySelectorAll('a[href$=".md"]').forEach(a=>{
+    a.onclick=(e)=>{e.preventDefault(); load(a.getAttribute('href').split('/').pop());};
+  });
+  const meta = files.find(f=>f.f===file);
+  crumbEl.textContent = meta ? (meta.n?`${meta.n} · `:'')+meta.t : file;
+  mainEl.scrollTop=0;
+  if(push) history.replaceState(null,'', '#'+file);
+  updateNavBtns(file);
+}
+function updateNavBtns(file){
+  const idx=files.findIndex(f=>f.f===file);
+  const prev=document.getElementById('prev'), next=document.getElementById('next');
+  prev.disabled=idx<=0; next.disabled=idx>=files.length-1;
+  prev.onclick=()=>idx>0&&load(files[idx-1].f);
+  next.onclick=()=>idx<files.length-1&&load(files[idx+1].f);
+}
+document.getElementById('q').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase();
+  document.querySelectorAll('nav a').forEach(a=>{
+    a.style.display = a.dataset.title.toLowerCase().includes(q)?'flex':'none';
+  });
+});
+mainEl.addEventListener('scroll',()=>{
+  const p=mainEl.scrollTop/(mainEl.scrollHeight-mainEl.clientHeight||1);
+  document.getElementById('bar').style.transform='scaleX('+p+')';
+});
+const initial=(location.hash||'#README.md').slice(1);
+load(files.some(f=>f.f===initial)?initial:'README.md');
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+dist/
+out/
+.turbo/
+
+# Prisma
+packages/db/prisma/*.db
+
+# Entorno (¡nunca commitear secretos!)
+.env
+.env.local
+.env.*.local
+
+# Config local de Claude Code (launch.json contiene credenciales locales)
+.claude/
+
+# Proyectos ajenos a este repo
+gift-card-alba/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / SO
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
+
+# Tests / coverage
+coverage/
