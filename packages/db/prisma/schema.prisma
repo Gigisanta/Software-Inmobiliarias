@@ -1,0 +1,482 @@
+// RealEstate OS — Schema Prisma (Fundaciones + Lead/Pipeline)
+// Multi-tenant: cada tabla de dominio lleva `tenantId` + índice. El aislamiento se
+// aplica en la capa de aplicación (servicios/tRPC) y se endurecerá con RLS de Postgres.
+// La propiedad es un ATRIBUTO del recorrido del lead: el modelo es lead-céntrico.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+//  Enums (espejo de packages/core/src/enums.ts)
+// ============================================================
+
+enum UserRole {
+  OWNER
+  MANAGER
+  ADVISOR
+  ADMIN
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum PipelineStageKey {
+  NUEVO_LEAD
+  PRIMER_CONTACTO
+  INTERESADO
+  VISITA_AGENDADA
+  VISITA_REALIZADA
+  NEGOCIACION
+  RESERVA
+  ESCRIBANIA
+  CERRADO_GANADO
+  PERDIDO
+}
+
+enum LeadStatus {
+  OPEN
+  WON
+  LOST
+}
+
+enum OperationType {
+  COMPRA
+  VENTA
+  ALQUILER
+  ALQUILER_TEMPORAL
+}
+
+enum PropertyType {
+  DEPARTAMENTO
+  CASA
+  PH
+  TERRENO
+  LOCAL
+  OFICINA
+  GALPON
+  COCHERA
+  CAMPO
+  OTRO
+}
+
+enum PropertyStatus {
+  BORRADOR
+  PUBLICADA
+  RESERVADA
+  VENDIDA
+  ALQUILADA
+  PAUSADA
+}
+
+enum FinancingType {
+  CONTADO
+  CREDITO_HIPOTECARIO
+  MIXTO
+  A_DEFINIR
+}
+
+enum InterestLevel {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum LeadChannel {
+  WHATSAPP
+  LANDING
+  PORTAL
+  LLAMADA
+  REFERIDO
+  MANUAL
+  OTRO
+}
+
+enum LossReason {
+  SIN_RESPUESTA
+  FUERA_DE_PRESUPUESTO
+  COMPRO_EN_OTRA
+  DESISTIO
+  NO_CALIFICA
+  DUPLICADO
+  OTRO
+}
+
+enum TaskStatus {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADA
+  CANCELADA
+}
+
+enum Priority {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum AppointmentType {
+  VISITA
+  LLAMADA
+  REUNION
+}
+
+enum AppointmentStatus {
+  AGENDADA
+  CONFIRMADA
+  REALIZADA
+  CANCELADA
+  REPROGRAMADA
+  NO_ASISTIO
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STAGE_CHANGE
+  ASSIGN
+  REASSIGN
+  LOGIN
+  PUBLISH
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+// ============================================================
+//  Tenancy & organización
+// ============================================================
+
+model Tenant {
+  id        String           @id @default(cuid())
+  name      String
+  slug      String           @unique
+  status    TenantStatus     @default(TRIAL)
+  plan      SubscriptionPlan @default(STARTER)
+  clerkOrgId String?         @unique
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  branches       Branch[]
+  users          User[]
+  pipelineStages PipelineStage[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String?
+  timezone  String   @default("America/Argentina/Buenos_Aires")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  User[] @relation("BranchUsers")
+  leads  Lead[] @relation("BranchLeads")
+
+  @@index([tenantId])
+  @@map("branches")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  tenantId    String
+  clerkUserId String?   @unique
+  email       String
+  firstName   String?
+  lastName    String?
+  role        UserRole  @default(ADVISOR)
+  branchId    String?
+  isActive    Boolean   @default(true)
+  lastActiveAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch        Branch?  @relation("BranchUsers", fields: [branchId], references: [id], onDelete: SetNull)
+  assignedLeads Lead[]   @relation("LeadAssignee")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([tenantId, role])
+  @@map("users")
+}
+
+// ============================================================
+//  Pipeline (configurable por tenant)
+// ============================================================
+
+model PipelineStage {
+  id          String           @id @default(cuid())
+  tenantId    String
+  key         PipelineStageKey
+  name        String
+  order       Int
+  probability Int              @default(0)
+  isWon       Boolean          @default(false)
+  isLost      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads  Lead[] @relation("LeadCurrentStage")
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("pipeline_stages")
+}
+
+// ============================================================
+//  Lead — entidad central
+// ============================================================
+
+model Lead {
+  id       String @id @default(cuid())
+  tenantId String
+
+  // Datos personales
+  firstName String
+  lastName  String?
+  email     String?
+  phone     String?
+
+  // Origen
+  channel LeadChannel @default(MANUAL)
+  source  String?
+
+  // Requerimiento / preferencias
+  operationType          OperationType?
+  budgetMin              Decimal?      @db.Decimal(14, 2)
+  budgetMax              Decimal?      @db.Decimal(14, 2)
+  currency               String        @default("USD")
+  preferredNeighborhoods String[]
+  propertyType           PropertyType?
+  rooms                  Int?
+  bedrooms               Int?
+  hasPets                Boolean?
+  financing              FinancingType @default(A_DEFINIR)
+  notes                  String?
+  interestLevel          InterestLevel?
+
+  // Estado comercial
+  status         LeadStatus  @default(OPEN)
+  currentStageId String
+  stageEnteredAt DateTime    @default(now())
+  firstContactAt DateTime?
+  lastActivityAt DateTime    @default(now())
+  lossReason     LossReason?
+  lostAt         DateTime?
+  wonAt          DateTime?
+
+  // Lead Score (explicable)
+  score        Int      @default(0)
+  scoreBand    String?
+  scoreFactors Json?
+  scoreUpdatedAt DateTime?
+
+  // Asignación
+  assignedToId String?
+  assignedAt   DateTime?
+  branchId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  currentStage     PipelineStage          @relation("LeadCurrentStage", fields: [currentStageId], references: [id])
+  assignedTo       User?                  @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  branch           Branch?                @relation("BranchLeads", fields: [branchId], references: [id], onDelete: SetNull)
+  stageHistory     LeadStageHistory[]
+  tasks            Task[]
+  appointments     Appointment[]
+  propertyInterests LeadPropertyInterest[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedToId])
+  @@index([tenantId, currentStageId])
+  @@index([tenantId, score])
+  @@map("leads")
+}
+
+model LeadStageHistory {
+  id              String    @id @default(cuid())
+  tenantId        String
+  leadId          String
+  fromStageId     String?
+  toStageId       String
+  fromStageKey    PipelineStageKey?
+  toStageKey      PipelineStageKey
+  probability     Int?
+  comment         String?
+  changedById     String?
+  enteredAt       DateTime  @default(now())
+  exitedAt        DateTime?
+  durationSeconds Int?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@map("lead_stage_history")
+}
+
+// ============================================================
+//  Propiedades (atributo del recorrido del lead)
+// ============================================================
+
+model Property {
+  id           String         @id @default(cuid())
+  tenantId     String
+  title        String
+  operationType OperationType
+  propertyType PropertyType
+  status       PropertyStatus @default(BORRADOR)
+  price        Decimal?       @db.Decimal(14, 2)
+  currency     String         @default("USD")
+  neighborhood String?
+  city         String?
+  rooms        Int?
+  bedrooms     Int?
+  bathrooms    Int?
+  areaM2       Int?
+  externalRef  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  leadInterests LeadPropertyInterest[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("properties")
+}
+
+model LeadPropertyInterest {
+  id         String        @id @default(cuid())
+  tenantId   String
+  leadId     String
+  propertyId String
+  interest   InterestLevel @default(MEDIO)
+  createdAt  DateTime      @default(now())
+
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, propertyId])
+  @@index([tenantId])
+  @@map("lead_property_interests")
+}
+
+// ============================================================
+//  Tareas y agenda
+// ============================================================
+
+model Task {
+  id          String     @id @default(cuid())
+  tenantId    String
+  leadId      String?
+  title       String
+  description String?
+  status      TaskStatus @default(PENDIENTE)
+  priority    Priority   @default(MEDIA)
+  dueAt       DateTime?
+  completedAt DateTime?
+  assignedToId String?
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, assignedToId, status])
+  @@index([tenantId, dueAt])
+  @@map("tasks")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  tenantId        String
+  leadId          String?
+  propertyId      String?
+  type            AppointmentType   @default(VISITA)
+  status          AppointmentStatus @default(AGENDADA)
+  scheduledAt     DateTime
+  durationMinutes Int               @default(30)
+  assignedToId    String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, assignedToId])
+  @@map("appointments")
+}
+
+// ============================================================
+//  Auditoría y outbox de eventos
+// ============================================================
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  tenantId    String
+  actorUserId String?
+  action      AuditAction
+  entityType  String
+  entityId    String
+  summary     String?
+  diff        Json?
+  createdAt   DateTime    @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_logs")
+}
+
+model OutboxEvent {
+  id            String       @id @default(cuid())
+  tenantId      String
+  type          String
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  actorUserId   String?
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  availableAt   DateTime     @default(now())
+  processedAt   DateTime?
+  lastError     String?
+  createdAt     DateTime     @default(now())
+
+  @@index([status, availableAt])
+  @@index([tenantId])
+  @@map("outbox_events")
+}

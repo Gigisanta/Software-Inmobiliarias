@@ -1,0 +1,27 @@
+{
+  "name": "realestate-os",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @reos/db generate",
+    "db:migrate": "pnpm --filter @reos/db migrate",
+    "db:migrate:deploy": "pnpm --filter @reos/db migrate:deploy",
+    "db:push": "pnpm --filter @reos/db push",
+    "db:seed": "pnpm --filter @reos/db seed",
+    "db:studio": "pnpm --filter @reos/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2"
+  }
+}
