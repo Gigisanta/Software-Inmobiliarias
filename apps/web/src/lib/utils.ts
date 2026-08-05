@@ -32,6 +32,32 @@ export function timeAgo(date: Date | string | null | undefined): string {
   return d.toLocaleDateString("es-AR");
 }
 
+/** Hora corta "15:30" (es-AR). */
+export function formatTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+/** Etiqueta del día: "Hoy", "Mañana" o "vie 8 ago". */
+export function dayLabel(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Mañana";
+  return d.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** Días completos transcurridos desde una fecha. */
+export function daysSince(date: Date | string | null | undefined): number {
+  if (!date) return 0;
+  const d = typeof date === "string" ? new Date(date) : date;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+
 /** Iniciales a partir de nombre y apellido. */
 export function initials(first?: string | null, last?: string | null): string {
   const a = first?.trim()?.[0] ?? "";

@@ -76,7 +76,9 @@ export async function getBoard(ctx: ServiceCtx) {
         scoreBand: true,
         currentStageId: true,
         assignedToId: true,
+        assignedTo: { select: { id: true, firstName: true, lastName: true } },
         lastActivityAt: true,
+        stageEnteredAt: true,
       },
     }),
   ]);

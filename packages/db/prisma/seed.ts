@@ -72,7 +72,8 @@ async function main() {
     stages.set(def.key, stage.id);
   }
 
-  // 5) Propiedades
+  // 5) Propiedades (limpio las previas del tenant para no duplicar en cada corrida)
+  await prisma.property.deleteMany({ where: { tenantId: tenant.id } });
   const prop1 = await prisma.property.create({
     data: {
       tenantId: tenant.id,
@@ -108,10 +109,47 @@ async function main() {
     },
   });
 
+  const prop3 = await prisma.property.create({
+    data: {
+      tenantId: tenant.id,
+      title: "Casa 3 amb. · Calle Belgrano",
+      operationType: OperationType.VENTA,
+      propertyType: PropertyType.CASA,
+      status: "PUBLICADA",
+      price: new Prisma.Decimal(210000),
+      currency: "USD",
+      neighborhood: "Belgrano R",
+      city: "CABA",
+      rooms: 3,
+      bedrooms: 2,
+      bathrooms: 1,
+      areaM2: 95,
+    },
+  });
+  const prop4 = await prisma.property.create({
+    data: {
+      tenantId: tenant.id,
+      title: "Departamento 2 amb. · Centro",
+      operationType: OperationType.VENTA,
+      propertyType: PropertyType.DEPARTAMENTO,
+      status: "PUBLICADA",
+      price: new Prisma.Decimal(98000),
+      currency: "USD",
+      neighborhood: "San Nicolás",
+      city: "CABA",
+      rooms: 2,
+      bedrooms: 1,
+      bathrooms: 1,
+      areaM2: 42,
+    },
+  });
+
   // 6) Leads de ejemplo (limpio los previos del tenant para reproducibilidad)
+  await prisma.appointment.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.task.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.lead.deleteMany({ where: { tenantId: tenant.id } });
 
-  await createLead({
+  const maria = await createLead({
     tenantId: tenant.id,
     stageId: stages.get(PipelineStageKey.VISITA_REALIZADA)!,
     stageKey: PipelineStageKey.VISITA_REALIZADA,
@@ -199,11 +237,178 @@ async function main() {
     },
   });
 
+  // Leads con historia: sin seguimiento hace días (para "Seguimientos pendientes")
+  // y operaciones avanzadas (para "Operaciones activas").
+  const juan = await createLead({
+    tenantId: tenant.id,
+    stageId: stages.get(PipelineStageKey.INTERESADO)!,
+    stageKey: PipelineStageKey.INTERESADO,
+    assignedToId: advisor.id,
+    branchId: branch.id,
+    firstName: "Juan",
+    lastName: "Pérez",
+    phone: "+5491144445555",
+    channel: LeadChannel.PORTAL,
+    operationType: OperationType.COMPRA,
+    budgetMin: 80000,
+    budgetMax: 110000,
+    neighborhoods: ["San Nicolás", "Monserrat"],
+    propertyType: PropertyType.DEPARTAMENTO,
+    financing: FinancingType.CONTADO,
+    propertyIds: [prop4.id],
+    daysWithoutActivity: 5,
+    scoreInput: {
+      daysSinceFirstContact: 12,
+      daysSinceLastActivity: 5,
+      conversationCount: 4,
+      propertiesViewed: 2,
+      visitsCompleted: 0,
+      hasBudget: true,
+      hasDocuments: false,
+      stageProbability: 25,
+      avgResponseMinutes: 60,
+    },
+  });
+
+  const valentina = await createLead({
+    tenantId: tenant.id,
+    stageId: stages.get(PipelineStageKey.NEGOCIACION)!,
+    stageKey: PipelineStageKey.NEGOCIACION,
+    assignedToId: manager.id,
+    branchId: branch.id,
+    firstName: "Valentina",
+    lastName: "Ríos",
+    phone: "+5491166667777",
+    channel: LeadChannel.REFERIDO,
+    operationType: OperationType.COMPRA,
+    budgetMin: 90000,
+    budgetMax: 100000,
+    neighborhoods: ["San Nicolás"],
+    propertyType: PropertyType.DEPARTAMENTO,
+    financing: FinancingType.CREDITO_HIPOTECARIO,
+    propertyIds: [prop4.id],
+    scoreInput: {
+      daysSinceFirstContact: 20,
+      daysSinceLastActivity: 1,
+      conversationCount: 12,
+      propertiesViewed: 4,
+      visitsCompleted: 2,
+      hasBudget: true,
+      hasDocuments: true,
+      stageProbability: 60,
+      avgResponseMinutes: 15,
+    },
+  });
+
+  const fernando = await createLead({
+    tenantId: tenant.id,
+    stageId: stages.get(PipelineStageKey.RESERVA)!,
+    stageKey: PipelineStageKey.RESERVA,
+    assignedToId: advisor.id,
+    branchId: branch.id,
+    firstName: "Fernando",
+    lastName: "Acosta",
+    phone: "+5491188889999",
+    channel: LeadChannel.WHATSAPP,
+    operationType: OperationType.COMPRA,
+    budgetMin: 190000,
+    budgetMax: 215000,
+    neighborhoods: ["Belgrano R", "Coghlan"],
+    propertyType: PropertyType.CASA,
+    financing: FinancingType.CONTADO,
+    propertyIds: [prop3.id],
+    scoreInput: {
+      daysSinceFirstContact: 35,
+      daysSinceLastActivity: 0,
+      conversationCount: 18,
+      propertiesViewed: 5,
+      visitsCompleted: 3,
+      hasBudget: true,
+      hasDocuments: true,
+      stageProbability: 80,
+      avgResponseMinutes: 10,
+    },
+  });
+
+  // 7) Agenda: visitas y llamadas próximas (hoy y mañana).
+  const today1530 = new Date();
+  today1530.setHours(15, 30, 0, 0);
+  const tomorrow1100 = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  tomorrow1100.setHours(11, 0, 0, 0);
+  const tomorrow1730 = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  tomorrow1730.setHours(17, 30, 0, 0);
+
+  await prisma.appointment.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        leadId: maria.id,
+        propertyId: prop1.id,
+        type: "VISITA",
+        status: "CONFIRMADA",
+        scheduledAt: today1530,
+        durationMinutes: 45,
+        assignedToId: advisor.id,
+        notes: "Segunda visita: quiere ver el balcón de tarde.",
+      },
+      {
+        tenantId: tenant.id,
+        leadId: fernando.id,
+        propertyId: prop3.id,
+        type: "REUNION",
+        status: "AGENDADA",
+        scheduledAt: tomorrow1100,
+        durationMinutes: 60,
+        assignedToId: advisor.id,
+        notes: "Firma de reserva en la oficina.",
+      },
+      {
+        tenantId: tenant.id,
+        leadId: valentina.id,
+        propertyId: prop4.id,
+        type: "LLAMADA",
+        status: "AGENDADA",
+        scheduledAt: tomorrow1730,
+        durationMinutes: 30,
+        assignedToId: manager.id,
+        notes: "Revisión de contraoferta con el propietario.",
+      },
+    ],
+  });
+
+  // 8) Tareas de ejemplo.
+  await prisma.task.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        leadId: juan.id,
+        title: "Llamar a Juan Pérez — retomar seguimiento",
+        status: "PENDIENTE",
+        priority: "ALTA",
+        dueAt: new Date(),
+        assignedToId: advisor.id,
+        createdById: manager.id,
+      },
+      {
+        tenantId: tenant.id,
+        leadId: fernando.id,
+        title: "Enviar documentación de reserva — Casa Belgrano",
+        status: "EN_PROGRESO",
+        priority: "URGENTE",
+        dueAt: tomorrow1100,
+        assignedToId: advisor.id,
+        createdById: advisor.id,
+      },
+    ],
+  });
+
   const counts = {
     usuarios: await prisma.user.count({ where: { tenantId: tenant.id } }),
     etapas: await prisma.pipelineStage.count({ where: { tenantId: tenant.id } }),
     propiedades: await prisma.property.count({ where: { tenantId: tenant.id } }),
     leads: await prisma.lead.count({ where: { tenantId: tenant.id } }),
+    citas: await prisma.appointment.count({ where: { tenantId: tenant.id } }),
+    tareas: await prisma.task.count({ where: { tenantId: tenant.id } }),
   };
 
   console.log("✅ Seed completo:", counts);
@@ -244,13 +449,20 @@ interface CreateLeadArgs {
   financing: FinancingType;
   propertyIds: string[];
   scoreInput: LeadScoreInput;
+  /** Retro-fecha lastActivityAt para simular leads olvidados (seguimientos). */
+  daysWithoutActivity?: number;
 }
 
 async function createLead(a: CreateLeadArgs) {
   const scored = computeLeadScore(a.scoreInput);
+  const lastActivityAt =
+    a.daysWithoutActivity != null
+      ? new Date(Date.now() - a.daysWithoutActivity * 24 * 60 * 60 * 1000)
+      : new Date();
   const lead = await prisma.lead.create({
     data: {
       tenantId: a.tenantId,
+      lastActivityAt,
       firstName: a.firstName,
       lastName: a.lastName,
       phone: a.phone,

@@ -60,7 +60,7 @@ const STATS = [
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
+    <div className="landing-legacy dark relative min-h-screen overflow-x-hidden bg-background text-foreground">
       {/* Nav */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-background/50 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">

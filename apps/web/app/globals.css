@@ -5,48 +5,128 @@
 @source "../src";
 
 /* ============================================================
-   Sistema de diseño RealEstate OS — dark obsidian + acento violeta→cian
-   Inspirado en Linear / Vercel / Stripe. Elevación por capas, glass con
-   moderación, gradiente "inteligencia" y semánticos para las bandas de score.
+   Sistema de diseño RealEstate OS — CRM premium para inmobiliarias.
+   Luz, aire y calma: superficies blancas, bordes suaves, un solo
+   acento verde oliva. Inspirado en Attio / Linear / Stripe.
+   Modo oscuro en grises cálidos (nunca azulados, nunca negro puro).
    ============================================================ */
-@theme {
-  /* Superficies (grises reales, no negro puro; elevación por capas) */
-  --color-background: #080b12;
-  --color-surface: #10141e;
-  --color-surface-2: #0c101a;
-  --color-elevated: #171d2b;
-  --color-border: #1b2231;
-  --color-border-strong: #2c3650;
 
-  /* Texto (~92% blanco, sin blanco puro) */
-  --color-foreground: #e9edf7;
-  --color-muted: #94a1b8;
-  --color-muted-2: #59677e;
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* Marca: violeta eléctrico → cian */
-  --color-primary: #6d5efc;
+:root {
+  /* Superficies */
+  --bg: #f8f8f6;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --border: #e5e7eb;
+  --border-strong: #d6d9de;
+
+  /* Texto */
+  --fg: #171717;
+  --fg-muted: #6b7280;
+  --fg-faint: #9ca3af;
+
+  /* Acentos */
+  --accent: #6b8e7a; /* verde oliva */
+  --accent-strong: #5c7d6a;
+  --accent-soft: #eef2ef;
+  --sand: #c8b89a; /* arena */
+  --sand-soft: #f5f0e6;
+  --warning: #e8a74b;
+  --danger: #d66a5e;
+  --success: #6d9f71;
+
+  /* Badges pastel de estado */
+  --badge-neutral-bg: #f3f4f6;
+  --badge-neutral-fg: #6b7280;
+  --badge-slate-bg: #edf1f5;
+  --badge-slate-fg: #52677d;
+  --badge-sand-bg: #f5efe2;
+  --badge-sand-fg: #8a7a52;
+  --badge-amber-bg: #faf0de;
+  --badge-amber-fg: #a8762d;
+  --badge-sage-bg: #ecf1ee;
+  --badge-sage-fg: #567561;
+  --badge-forest-bg: #e3ede4;
+  --badge-forest-fg: #3d6b47;
+  --badge-danger-bg: #f9ebe9;
+  --badge-danger-fg: #ab5348;
+
+  /* Sombras */
+  --shadow-card: 0 1px 2px rgba(23, 23, 23, 0.04);
+  --shadow-card-hover: 0 1px 2px rgba(23, 23, 23, 0.04), 0 4px 12px rgba(23, 23, 23, 0.05);
+  --shadow-overlay: 0 8px 30px rgba(23, 23, 23, 0.12);
+
+  --font-sans-stack: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.dark {
+  --bg: #111315;
+  --surface: #181a1f;
+  --surface-2: #22252a;
+  --border: #2a2d32;
+  --border-strong: #383c42;
+
+  --fg: #ecebe7;
+  --fg-muted: #a3a29b;
+  --fg-faint: #75746e;
+
+  --accent: #7fa28c;
+  --accent-strong: #8fb29c;
+  --accent-soft: #1f2622;
+  --sand: #cdbf9f;
+  --sand-soft: #26231c;
+  --warning: #e8a74b;
+  --danger: #d66a5e;
+  --success: #7dae81;
+
+  --badge-neutral-bg: #22252a;
+  --badge-neutral-fg: #a3a29b;
+  --badge-slate-bg: #21262c;
+  --badge-slate-fg: #8fa3b5;
+  --badge-sand-bg: #27241b;
+  --badge-sand-fg: #c0ae82;
+  --badge-amber-bg: #2a231a;
+  --badge-amber-fg: #d29c53;
+  --badge-sage-bg: #1e2420;
+  --badge-sage-fg: #8fb29c;
+  --badge-forest-bg: #1b241d;
+  --badge-forest-fg: #7dae81;
+  --badge-danger-bg: #2a1e1c;
+  --badge-danger-fg: #d98a80;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-overlay: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-foreground: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-muted-2: var(--fg-faint);
+
+  --color-primary: var(--accent);
+  --color-primary-strong: var(--accent-strong);
+  --color-primary-soft: var(--accent-soft);
   --color-primary-foreground: #ffffff;
-  --color-accent: #2dd4ee;
-  --color-violet: #a78bfa;
-
-  /* Semánticos (bandas de Lead Score + estados) */
-  --color-hot: #ff7a45;
-  --color-warm: #4d8bff;
-  --color-cold: #6b7a92;
-  --color-success: #2fd47b;
-  --color-warning: #f5c451;
-  --color-danger: #f5566b;
+  --color-sand: var(--sand);
+  --color-sand-soft: var(--sand-soft);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
 
   --radius-xl: 16px;
   --radius-2xl: 20px;
-}
 
-:root {
-  /* Gradiente de marca reutilizable */
-  --gradient-brand: linear-gradient(120deg, #6d5efc 0%, #8b6cff 40%, #2dd4ee 100%);
-  --gradient-brand-soft: linear-gradient(120deg, rgba(109, 94, 252, 0.9), rgba(45, 212, 238, 0.75));
-  --font-sans-stack: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display-stack: var(--font-display), var(--font-sans), "Segoe UI", sans-serif;
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+  --shadow-overlay: var(--shadow-overlay);
 }
 
 * {
@@ -62,66 +142,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Fondo mesh: blobs violeta/cian difusos + grilla sutil, todo fijo */
 body {
-  position: relative;
   min-height: 100vh;
-  background-color: var(--color-background);
-  background-image:
-    radial-gradient(900px 520px at 8% -8%, rgba(109, 94, 252, 0.16), transparent 60%),
-    radial-gradient(820px 480px at 100% 0%, rgba(45, 212, 238, 0.12), transparent 55%),
-    radial-gradient(700px 700px at 85% 110%, rgba(139, 108, 255, 0.1), transparent 60%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 44px 44px, 44px 44px;
-  background-attachment: fixed;
 }
 
-/* Grano/ruido sutil por encima de todo (no intercepta clics) */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Tipografía display */
-.font-display {
-  font-family: var(--font-display-stack);
-  letter-spacing: -0.02em;
-}
-
-/* Vidrio esmerilado (usar con moderación: ≤3 tipos por pantalla) */
-.glass {
-  background: color-mix(in oklab, var(--color-surface) 62%, transparent);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
-    0 20px 40px -20px rgba(0, 0, 0, 0.6);
-}
-
-.text-gradient-brand {
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.bg-gradient-brand {
-  background-image: var(--gradient-brand);
-}
-
-/* Anillo de brillo para elementos "hot"/destacados */
-.glow-primary {
-  box-shadow: 0 0 0 1px rgba(109, 94, 252, 0.35), 0 8px 30px -8px rgba(109, 94, 252, 0.5);
-}
-.glow-hot {
-  box-shadow: 0 0 0 1px rgba(255, 122, 69, 0.35), 0 8px 30px -8px rgba(255, 122, 69, 0.45);
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
 }
 
 ::-webkit-scrollbar {
@@ -129,29 +155,45 @@ body::after {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #232d43;
+  background: var(--border-strong);
   border-radius: 6px;
-  border: 2px solid var(--color-background);
+  border: 3px solid var(--bg);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Animaciones utilitarias */
-@keyframes reos-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ============================================================
+   Compatibilidad SOLO para la landing de marketing (estilo previo,
+   pendiente de rediseño). Ningún componente del CRM usa estas clases.
+   ============================================================ */
+.landing-legacy {
+  --gradient-brand: linear-gradient(120deg, #6d5efc 0%, #8b6cff 40%, #2dd4ee 100%);
 }
-.animate-in {
-  animation: reos-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+.landing-legacy .font-display {
+  letter-spacing: -0.02em;
 }
-
+.landing-legacy .glass {
+  background: color-mix(in oklab, var(--surface) 62%, transparent);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.landing-legacy .text-gradient-brand {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.landing-legacy .bg-gradient-brand {
+  background-image: var(--gradient-brand);
+}
+.landing-legacy .glow-primary {
+  box-shadow: 0 0 0 1px rgba(109, 94, 252, 0.35), 0 8px 30px -8px rgba(109, 94, 252, 0.5);
+}
+.landing-legacy .glow-hot {
+  box-shadow: 0 0 0 1px rgba(255, 122, 69, 0.35), 0 8px 30px -8px rgba(255, 122, 69, 0.45);
+}
 @keyframes reos-pulse {
   0%,
   100% {
@@ -161,10 +203,9 @@ body::after {
     opacity: 0.35;
   }
 }
-.live-dot {
+.landing-legacy .live-dot {
   animation: reos-pulse 1.6s ease-in-out infinite;
 }
-
 @keyframes reos-float {
   0%,
   100% {
@@ -174,13 +215,21 @@ body::after {
     transform: translateY(-6px);
   }
 }
-.animate-float {
+.landing-legacy .animate-float {
   animation: reos-float 6s ease-in-out infinite;
 }
 
-/* Asegura que el contenido quede por encima del mesh */
-main,
-header {
-  position: relative;
-  z-index: 2;
+/* Entrada sutil de página (sin rebotes) */
+@keyframes reos-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-in {
+  animation: reos-in 0.24s ease-out both;
 }

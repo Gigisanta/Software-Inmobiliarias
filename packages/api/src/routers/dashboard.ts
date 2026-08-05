@@ -7,4 +7,9 @@ export const dashboardRouter = router({
   summary: permissionProcedure(Permission.LEAD_READ).query(({ ctx }) =>
     dashboardService.getSummary({ prisma: ctx.prisma, principal: ctx.principal }),
   ),
+
+  /** El día de trabajo: visitas próximas, seguimientos pendientes y operaciones activas. */
+  today: permissionProcedure(Permission.LEAD_READ).query(({ ctx }) =>
+    dashboardService.getToday({ prisma: ctx.prisma, principal: ctx.principal }),
+  ),
 });

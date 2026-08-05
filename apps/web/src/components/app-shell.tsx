@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Topbar } from "@/components/topbar";
+import { Sidebar, MobileNav } from "@/components/sidebar";
+import { Header } from "@/components/header";
 
-/** Rutas que se muestran sin la barra de la app (marketing/landing). */
-const BARE_ROUTES = ["/landing", "/login"];
+/** Rutas que se muestran sin la estructura de la app (marketing/landing). */
+const BARE_ROUTES = ["/landing", "/login", "/presentacion"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,8 +15,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <Topbar />
-      <main className="mx-auto max-w-[1400px] px-4 py-6 md:px-6 md:py-8">{children}</main>
+      <Sidebar />
+      <div className="md:pl-60">
+        <Header />
+        <MobileNav />
+        <main className="mx-auto w-full max-w-[1200px] px-6 py-10 lg:px-10">{children}</main>
+      </div>
     </div>
   );
 }

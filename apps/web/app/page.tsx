@@ -2,140 +2,405 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radar, Flame, TrendingUp, UserPlus, Trophy, Inbox, Users2 } from "lucide-react";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@reos/api";
+import {
+  CalendarDays,
+  PhoneCall,
+  KeyRound,
+  MapPin,
+  Video,
+  ArrowUpRight,
+} from "lucide-react";
+
 import { useTRPC } from "@/trpc/client";
 import { PageHeader } from "@/components/page-header";
-import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge, bandVariant } from "@/components/ui/badge";
+import { Badge, stageVariant, bandVariant } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/empty-state";
-import { formatMoney, initials, timeAgo, cn } from "@/lib/utils";
+import { FadeIn } from "@/components/ui/motion";
+import { formatMoney, formatTime, dayLabel, daysSince, initials, cn } from "@/lib/utils";
 
-export default function OperacionesPage() {
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type TodayData = RouterOutputs["dashboard"]["today"];
+type SummaryData = RouterOutputs["dashboard"]["summary"];
+
+const APPOINTMENT_TYPE: Record<string, { label: string; icon: React.ReactNode }> = {
+  VISITA: { label: "Visita", icon: <MapPin className="h-3.5 w-3.5" strokeWidth={1.75} /> },
+  LLAMADA: { label: "Llamada", icon: <PhoneCall className="h-3.5 w-3.5" strokeWidth={1.75} /> },
+  REUNION: { label: "Reunión", icon: <Video className="h-3.5 w-3.5" strokeWidth={1.75} /> },
+};
+
+export default function HoyPage() {
   const trpc = useTRPC();
   const summary = useQuery(trpc.dashboard.summary.queryOptions());
-  const opps = useQuery(trpc.lead.opportunities.queryOptions({ limit: 8 }));
+  const today = useQuery(trpc.dashboard.today.queryOptions());
 
   const s = summary.data;
-  const maxCount = s ? Math.max(1, ...s.funnel.map((f) => f.count)) : 1;
+  const t = today.data;
+  const loading = summary.isLoading || today.isLoading;
+
+  const dateLabel = new Date().toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
-    <div className="animate-in">
+    <div>
       <PageHeader
-        title="Centro de Operaciones"
-        subtitle="Torre de control de la inmobiliaria en tiempo real"
-        icon={<Radar className="h-5 w-5" />}
-        actions={
-          <span className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted">
-            <span className="h-2 w-2 rounded-full bg-success live-dot" /> En vivo
-          </span>
-        }
+        title="Hoy"
+        subtitle={dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {summary.isLoading || !s ? (
-          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
-        ) : (
-          <>
-            <StatCard label="Nuevos hoy" value={s.kpis.newToday} icon={<UserPlus className="h-4 w-4" />} tone="primary" />
-            <StatCard label="Hot leads" value={s.kpis.hot} icon={<Flame className="h-4 w-4" />} tone="hot" hint="score alto" />
-            <StatCard label="Abiertos" value={s.kpis.open} icon={<TrendingUp className="h-4 w-4" />} />
-            <StatCard label="Ganados" value={s.kpis.won} icon={<Trophy className="h-4 w-4" />} tone="success" />
-            <StatCard label="Sin asignar" value={s.kpis.unassigned} icon={<Inbox className="h-4 w-4" />} tone={s.kpis.unassigned > 0 ? "danger" : "default"} />
-            <StatCard label="Equipo activo" value={s.team} icon={<Users2 className="h-4 w-4" />} />
-          </>
-        )}
+      {/* Resumen silencioso del día */}
+      <FadeIn>
+        <QuietStats summary={s} today={t} loading={loading} />
+      </FadeIn>
+
+      {/* Tarjetas de trabajo: qué hacer ahora */}
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <FadeIn delay={0.04}>
+          <VisitsCard today={t} loading={loading} />
+        </FadeIn>
+        <FadeIn delay={0.08}>
+          <FollowUpsCard today={t} loading={loading} />
+        </FadeIn>
+        <FadeIn delay={0.12}>
+          <OperationsCard today={t} loading={loading} />
+        </FadeIn>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Embudo */}
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Embudo del pipeline</CardTitle>
-            {s && <span className="text-xs text-muted">{s.scope === "own" ? "mis leads" : "toda la inmobiliaria"}</span>}
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {summary.isLoading || !s
-              ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9" />)
-              : s.funnel.map((f) => (
-                  <Link
-                    href={`/pipeline`}
-                    key={f.stage.id}
-                    className="group flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5"
-                  >
-                    <span className="w-36 shrink-0 truncate text-sm">{f.stage.name}</span>
-                    <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-surface-2">
-                      <div
-                        className="absolute inset-y-0 left-0 rounded-md bg-gradient-to-r from-primary/70 to-accent/60 transition-all"
-                        style={{ width: `${(f.count / maxCount) * 100}%` }}
-                      />
-                      <span className="absolute inset-y-0 left-2 flex items-center text-xs font-semibold">
-                        {f.count}
-                      </span>
-                    </div>
-                    <span className="w-28 shrink-0 text-right text-xs text-muted">
-                      {formatMoney(f.potentialValue)}
-                    </span>
-                  </Link>
-                ))}
-          </CardContent>
-        </Card>
-
-        {/* Oportunidades del día */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>
-              <span className="inline-flex items-center gap-1.5">
-                <Flame className="h-3.5 w-3.5 text-hot" /> Oportunidades del día
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {opps.isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-14" />
-                ))}
-              </div>
-            ) : !opps.data || opps.data.length === 0 ? (
-              <EmptyState title="Sin oportunidades" description="Cuando entren leads aparecerán acá, priorizados por score." />
-            ) : (
-              <ul className="divide-y divide-border">
-                {opps.data.map((o) => (
-                  <li key={o.lead.id}>
-                    <Link href={`/leads/${o.lead.id}`} className="flex items-center gap-3 py-2.5 transition-colors hover:opacity-90">
-                      <ScoreDot score={o.score} band={o.band} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">
-                          {o.lead.firstName} {o.lead.lastName ?? ""}
-                        </div>
-                        <div className="truncate text-xs text-muted">
-                          {o.lead.currentStage.name} · {timeAgo(o.lead.lastActivityAt)}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={bandVariant(o.band)}>{o.action}</Badge>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+      {/* Embudo + equipo */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <FadeIn delay={0.16} className="lg:col-span-2">
+          <FunnelCard summary={s} loading={loading} />
+        </FadeIn>
+        <FadeIn delay={0.2}>
+          <TeamCard today={t} loading={loading} />
+        </FadeIn>
       </div>
     </div>
   );
 }
 
-function ScoreDot({ score, band }: { score: number; band?: string | null }) {
-  const color = band === "CALIENTE" ? "text-hot" : band === "TIBIO" ? "text-warm" : "text-cold";
+/* ------------------------------------------------------------------ */
+/* Resumen: una sola línea de números discretos                        */
+/* ------------------------------------------------------------------ */
+
+function QuietStats({
+  summary,
+  today,
+  loading,
+}: {
+  summary: SummaryData | undefined;
+  today: TodayData | undefined;
+  loading: boolean;
+}) {
+  if (loading || !summary || !today) {
+    return <Skeleton className="h-20 rounded-2xl" />;
+  }
+
+  const stats = [
+    { label: "Visitas próximas", value: today.appointments.length },
+    { label: "Sin seguimiento", value: today.followUps.length },
+    { label: "Operaciones activas", value: today.operations.length },
+    { label: "Leads abiertos", value: summary.kpis.open },
+    { label: "Ganados", value: summary.kpis.won },
+  ];
+
   return (
-    <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border bg-surface-2 text-sm font-bold tabular-nums", color)}>
-      {score}
+    <Card>
+      <CardContent className="grid grid-cols-2 gap-x-6 gap-y-5 px-6 py-6 sm:grid-cols-3 lg:grid-cols-5">
+        {stats.map((stat) => (
+          <div key={stat.label}>
+            <div className="text-2xl font-semibold tabular-nums text-foreground">{stat.value}</div>
+            <div className="mt-1 text-xs text-muted">{stat.label}</div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Próximas visitas                                                    */
+/* ------------------------------------------------------------------ */
+
+function SectionCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="h-full">
+      <CardHeader className="flex flex-row items-center gap-2.5">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 text-muted">
+          {icon}
+        </span>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function QuietEmpty({ text }: { text: string }) {
+  return <p className="py-6 text-center text-sm text-muted-2">{text}</p>;
+}
+
+function VisitsCard({ today, loading }: { today: TodayData | undefined; loading: boolean }) {
+  return (
+    <SectionCard
+      icon={<CalendarDays className="h-4 w-4" strokeWidth={1.75} />}
+      title="Próximas visitas"
+    >
+      {loading || !today ? (
+        <ListSkeleton />
+      ) : today.appointments.length === 0 ? (
+        <QuietEmpty text="No hay visitas agendadas." />
+      ) : (
+        <ul className="flex flex-col divide-y divide-border">
+          {today.appointments.map((a) => {
+            const type = APPOINTMENT_TYPE[a.type] ?? APPOINTMENT_TYPE.VISITA;
+            return (
+              <li key={a.id} className="py-3.5 first:pt-0 last:pb-0">
+                <ItemLink href={a.lead ? `/leads/${a.lead.id}` : "/agenda"}>
+                  <div className="w-14 shrink-0">
+                    <div className="text-sm font-semibold tabular-nums text-foreground">
+                      {formatTime(a.scheduledAt)}
+                    </div>
+                    <div className="text-[11px] text-muted-2">{dayLabel(a.scheduledAt)}</div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {a.property?.title ?? type.label}
+                    </p>
+                    {a.lead ? (
+                      <p className="mt-0.5 truncate text-xs text-muted">
+                        Cliente: {a.lead.firstName} {a.lead.lastName ?? ""}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Badge variant="sand">
+                    {type.icon}
+                    {type.label}
+                  </Badge>
+                </ItemLink>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Seguimientos pendientes                                             */
+/* ------------------------------------------------------------------ */
+
+function FollowUpsCard({ today, loading }: { today: TodayData | undefined; loading: boolean }) {
+  return (
+    <SectionCard
+      icon={<PhoneCall className="h-4 w-4" strokeWidth={1.75} />}
+      title="Seguimientos pendientes"
+    >
+      {loading || !today ? (
+        <ListSkeleton />
+      ) : today.followUps.length === 0 ? (
+        <QuietEmpty text="Todos los leads están al día." />
+      ) : (
+        <ul className="flex flex-col divide-y divide-border">
+          {today.followUps.map((lead) => {
+            const days = daysSince(lead.lastActivityAt);
+            return (
+              <li key={lead.id} className="py-3.5 first:pt-0 last:pb-0">
+                <ItemLink href={`/leads/${lead.id}`}>
+                  <Avatar
+                    initials={initials(lead.firstName, lead.lastName)}
+                    size="sm"
+                    tone="neutral"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {lead.firstName} {lead.lastName ?? ""}
+                    </p>
+                    <p className={cn("mt-0.5 text-xs", days >= 5 ? "text-danger" : "text-muted")}>
+                      Hace {days} {days === 1 ? "día" : "días"} sin respuesta
+                    </p>
+                  </div>
+                  <Badge variant={stageVariant(lead.currentStage?.key)}>
+                    {lead.currentStage?.name ?? "Sin etapa"}
+                  </Badge>
+                </ItemLink>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Operaciones activas                                                 */
+/* ------------------------------------------------------------------ */
+
+const OPERATION_HINT: Record<string, string> = {
+  NEGOCIACION: "Negociación en curso",
+  RESERVA: "Reserva en proceso",
+  ESCRIBANIA: "Escritura programada",
+};
+
+function OperationsCard({ today, loading }: { today: TodayData | undefined; loading: boolean }) {
+  return (
+    <SectionCard
+      icon={<KeyRound className="h-4 w-4" strokeWidth={1.75} />}
+      title="Operaciones activas"
+    >
+      {loading || !today ? (
+        <ListSkeleton />
+      ) : today.operations.length === 0 ? (
+        <QuietEmpty text="No hay operaciones en curso." />
+      ) : (
+        <ul className="flex flex-col divide-y divide-border">
+          {today.operations.map((lead) => {
+            const property = lead.propertyInterests[0]?.property;
+            const amount = lead.budgetMax ?? lead.budgetMin;
+            return (
+              <li key={lead.id} className="py-3.5 first:pt-0 last:pb-0">
+                <ItemLink href={`/leads/${lead.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {property?.title ?? `${lead.firstName} ${lead.lastName ?? ""}`}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {OPERATION_HINT[lead.currentStage?.key ?? ""] ?? lead.currentStage?.name}
+                      {amount != null ? ` · ${formatMoney(String(amount), lead.currency)}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant={stageVariant(lead.currentStage?.key)}>
+                    {lead.currentStage?.name}
+                  </Badge>
+                </ItemLink>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Embudo minimalista                                                  */
+/* ------------------------------------------------------------------ */
+
+function FunnelCard({ summary, loading }: { summary: SummaryData | undefined; loading: boolean }) {
+  const funnel = summary?.funnel ?? [];
+  const maxCount = Math.max(1, ...funnel.map((f) => f.count));
+
+  return (
+    <Card className="h-full">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Embudo del pipeline</CardTitle>
+        {summary && (
+          <span className="text-xs text-muted-2">
+            {summary.scope === "own" ? "Mis leads" : "Toda la inmobiliaria"}
+          </span>
+        )}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {loading || !summary
+          ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8" />)
+          : funnel.map((f) => (
+              <Link key={f.stage.id} href="/pipeline" className="group block">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm text-foreground">{f.stage.name}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted">
+                    {f.count} · {formatMoney(f.potentialValue)}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+                  <div
+                    className="h-full rounded-full bg-primary/70 transition-[width] duration-300 ease-out group-hover:bg-primary"
+                    style={{ width: `${Math.max(3, (f.count / maxCount) * 100)}%` }}
+                  />
+                </div>
+              </Link>
+            ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Equipo                                                              */
+/* ------------------------------------------------------------------ */
+
+function TeamCard({ today, loading }: { today: TodayData | undefined; loading: boolean }) {
+  const advisors = today?.advisors ?? [];
+
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>Equipo</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading || !today ? (
+          <ListSkeleton />
+        ) : advisors.length === 0 ? (
+          <QuietEmpty text="Visible para dueños y gerentes." />
+        ) : (
+          <ul className="flex flex-col divide-y divide-border">
+            {advisors.map((advisor) => (
+              <li key={advisor.id} className="flex items-center gap-3 py-3.5 first:pt-0 last:pb-0">
+                <Avatar initials={initials(advisor.firstName, advisor.lastName)} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {advisor.firstName} {advisor.lastName}
+                  </p>
+                </div>
+                <span className="text-xs tabular-nums text-muted">
+                  {advisor.won} {advisor.won === 1 ? "venta" : "ventas"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Piezas compartidas                                                  */
+/* ------------------------------------------------------------------ */
+
+function ItemLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="group -mx-2 flex items-center gap-3 rounded-xl px-2 py-1 transition-colors duration-[180ms] ease-out hover:bg-surface-2/60"
+    >
+      {children}
+      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-transparent transition-colors duration-[180ms] group-hover:text-muted-2" />
+    </Link>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="flex flex-col gap-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Skeleton key={i} className="h-12" />
+      ))}
     </div>
   );
 }

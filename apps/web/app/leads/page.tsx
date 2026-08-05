@@ -1,76 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
-import {
-  Users,
-  Plus,
-  Search,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Phone,
-  UserRound,
-  Loader2,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@reos/api";
+import { Users, Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
 import { PipelineStageKey, LeadChannel, OperationType } from "@reos/core";
 
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge, bandVariant } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Badge, stageVariant, bandVariant, BAND_LABEL } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { Modal } from "@/components/ui/modal";
+import { Input, Textarea, SearchInput, Field } from "@/components/ui/input";
+import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { FadeIn } from "@/components/ui/motion";
 import { cn, formatMoney, timeAgo, initials } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Tipos derivados del contrato de `lead.list` (sin `any`).
-// ---------------------------------------------------------------------------
-
-type LeadListItem = {
-  id: string;
-  firstName: string;
-  lastName: string | null;
-  email: string | null;
-  phone: string | null;
-  channel: string;
-  operationType: string;
-  budgetMin: number | string | null;
-  budgetMax: number | string | null;
-  currency: string;
-  score: number;
-  scoreBand: "CALIENTE" | "TIBIO" | "FRIO" | null;
-  status: string;
-  currentStage: { key: string; name: string; probability: number } | null;
-  assignedTo: { id: string; firstName: string; lastName: string } | null;
-  lastActivityAt: string | Date | null;
-  createdAt: string | Date;
-};
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type LeadList = RouterOutputs["lead"]["list"];
+type LeadListItem = LeadList["items"][number];
 
 const PAGE_SIZE = 20;
 
-// ---------------------------------------------------------------------------
-// Etiquetas legibles para chips / selects.
-// ---------------------------------------------------------------------------
-
 const STAGE_LABEL: Record<string, string> = {
   NUEVO_LEAD: "Nuevo",
-  PRIMER_CONTACTO: "Primer contacto",
+  PRIMER_CONTACTO: "Contactado",
   INTERESADO: "Interesado",
   VISITA_AGENDADA: "Visita agendada",
   VISITA_REALIZADA: "Visita realizada",
   NEGOCIACION: "Negociación",
   RESERVA: "Reserva",
   ESCRIBANIA: "Escribanía",
-  CERRADO_GANADO: "Cerrado ganado",
+  CERRADO_GANADO: "Vendido",
   PERDIDO: "Perdido",
 };
 
@@ -91,16 +59,6 @@ const OPERATION_LABEL: Record<string, string> = {
   ALQUILER_TEMPORAL: "Alquiler temporal",
 };
 
-const BAND_LABEL: Record<"CALIENTE" | "TIBIO" | "FRIO", string> = {
-  CALIENTE: "Caliente",
-  TIBIO: "Tibio",
-  FRIO: "Frío",
-};
-
-// ---------------------------------------------------------------------------
-// Hook de debounce (evita disparar la query en cada tecla).
-// ---------------------------------------------------------------------------
-
 function useDebounced<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -109,10 +67,6 @@ function useDebounced<T>(value: T, delay = 300): T {
   }, [value, delay]);
   return debounced;
 }
-
-// ---------------------------------------------------------------------------
-// Página
-// ---------------------------------------------------------------------------
 
 export default function LeadsPage() {
   const trpc = useTRPC();
@@ -123,9 +77,14 @@ export default function LeadsPage() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Toma "?q=" de la búsqueda global del header (solo al montar).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearchInput(q);
+  }, []);
+
   const search = useDebounced(searchInput.trim(), 300);
 
-  // Reinicia a la primera página cuando cambian los filtros.
   useEffect(() => {
     setPage(1);
   }, [search, stageKey]);
@@ -139,159 +98,106 @@ export default function LeadsPage() {
     }),
   );
 
-  const data = leads.data as
-    | {
-        items: LeadListItem[];
-        total: number;
-        page: number;
-        pageSize: number;
-        pageCount: number;
-      }
-    | undefined;
-
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const pageCount = data?.pageCount ?? 1;
+  const items = leads.data?.items ?? [];
+  const total = leads.data?.total ?? 0;
+  const pageCount = leads.data?.pageCount ?? 1;
 
   return (
-    <div className="flex min-h-screen flex-col px-4 pb-10 pt-4">
+    <div>
       <PageHeader
         title="Leads"
-        subtitle="Todos tus contactos y oportunidades en un solo lugar"
-        icon={<Users className="h-5 w-5" />}
+        subtitle="Compradores y consultas de tu inmobiliaria"
         actions={
-          <Button variant="primary" onClick={() => setModalOpen(true)}>
+          <Button onClick={() => setModalOpen(true)}>
             <Plus className="h-4 w-4" />
             Nuevo lead
           </Button>
         }
       />
 
-      <FilterBar
-        searchInput={searchInput}
-        onSearch={setSearchInput}
-        stageKey={stageKey}
-        onStage={setStageKey}
-      />
+      <FadeIn>
+        <div className="flex flex-col gap-4">
+          <SearchInput
+            value={searchInput}
+            onValueChange={setSearchInput}
+            placeholder="Buscar por nombre, teléfono o email…"
+            className="max-w-md"
+          />
 
-      <div className="mt-5 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <StageChip active={!stageKey} onClick={() => setStageKey(undefined)}>
+              Todos
+            </StageChip>
+            {Object.values(PipelineStageKey).map((key) => (
+              <StageChip
+                key={key}
+                active={stageKey === key}
+                onClick={() => setStageKey(stageKey === key ? undefined : key)}
+              >
+                {STAGE_LABEL[key] ?? key}
+              </StageChip>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+      <div className="mt-6">
         {leads.isLoading ? (
           <LeadListSkeleton />
         ) : leads.isError ? (
           <EmptyState
-            icon={<Users className="h-8 w-8" />}
+            icon={<Users className="h-6 w-6" strokeWidth={1.5} />}
             title="No pudimos cargar los leads"
             description="Ocurrió un error al traer la lista. Volvé a intentar en unos segundos."
           />
         ) : items.length === 0 ? (
           <EmptyState
-            icon={<Users className="h-8 w-8" />}
-            title={
-              search || stageKey
-                ? "No hay leads con esos filtros"
-                : "Todavía no cargaste ningún lead"
-            }
+            icon={<Users className="h-6 w-6" strokeWidth={1.5} />}
+            title={search || stageKey ? "No hay leads con esos filtros" : "Todavía no cargaste ningún lead"}
             description={
               search || stageKey
                 ? "Probá ajustar la búsqueda o limpiar la etapa seleccionada."
                 : "Sumá tu primer contacto para empezar a trabajar el embudo."
             }
             action={
-              <Button variant="primary" onClick={() => setModalOpen(true)}>
+              <Button onClick={() => setModalOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Nuevo lead
               </Button>
             }
           />
         ) : (
-          <>
-            <div className="flex flex-col gap-3">
-              {items.map((lead) => (
-                <LeadRow key={lead.id} lead={lead} />
-              ))}
-            </div>
+          <FadeIn>
+            <Card>
+              <LeadsTable items={items} />
+            </Card>
 
             <Pagination
-              page={data?.page ?? page}
+              page={leads.data?.page ?? page}
               pageCount={pageCount}
               total={total}
               onPrev={() => setPage((p) => Math.max(1, p - 1))}
               onNext={() => setPage((p) => Math.min(pageCount, p + 1))}
             />
-          </>
+          </FadeIn>
         )}
       </div>
 
-      {modalOpen ? (
-        <NewLeadModal
-          onClose={() => setModalOpen(false)}
-          onCreated={() => {
-            setModalOpen(false);
-            qc.invalidateQueries();
-          }}
-        />
-      ) : null}
+      <NewLeadModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={() => {
+          setModalOpen(false);
+          qc.invalidateQueries();
+        }}
+      />
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Barra de filtros: búsqueda + chips de etapa
-// ---------------------------------------------------------------------------
-
-function FilterBar({
-  searchInput,
-  onSearch,
-  stageKey,
-  onStage,
-}: {
-  searchInput: string;
-  onSearch: (value: string) => void;
-  stageKey: string | undefined;
-  onStage: (value: string | undefined) => void;
-}) {
-  const stages = useMemo(() => Object.values(PipelineStageKey), []);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => onSearch(e.target.value)}
-          placeholder="Buscar por nombre, teléfono o email…"
-          className="h-10 w-full rounded-lg border border-border bg-surface pl-9 pr-9 text-sm text-foreground placeholder:text-muted focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary/40"
-        />
-        {searchInput ? (
-          <button
-            type="button"
-            onClick={() => onSearch("")}
-            aria-label="Limpiar búsqueda"
-            className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-muted hover:bg-white/5 hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <StageChip active={!stageKey} onClick={() => onStage(undefined)}>
-          Todos
-        </StageChip>
-        {stages.map((key) => (
-          <StageChip
-            key={key}
-            active={stageKey === key}
-            onClick={() => onStage(stageKey === key ? undefined : key)}
-          >
-            {STAGE_LABEL[key] ?? key}
-          </StageChip>
-        ))}
-      </div>
-    </div>
-  );
-}
+/* ------------------------------------------------------------------ */
+/* Filtros                                                             */
+/* ------------------------------------------------------------------ */
 
 function StageChip({
   active,
@@ -307,9 +213,9 @@ function StageChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+        "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-[180ms] ease-out",
         active
-          ? "border-primary/60 bg-primary/15 text-primary"
+          ? "border-primary/40 bg-primary-soft text-primary"
           : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground",
       )}
     >
@@ -318,139 +224,110 @@ function StageChip({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Fila de lead (tarjeta, no tabla)
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Tabla                                                               */
+/* ------------------------------------------------------------------ */
 
-function LeadRow({ lead }: { lead: LeadListItem }) {
-  const band = lead.scoreBand;
-  const variant = band ? bandVariant(band) : "neutral";
-
-  const budget = formatBudget(lead.budgetMin, lead.budgetMax, lead.currency);
-  const fullName = `${lead.firstName}${lead.lastName ? ` ${lead.lastName}` : ""}`;
+function LeadsTable({ items }: { items: LeadListItem[] }) {
+  const router = useRouter();
 
   return (
-    <Link
-      href={`/leads/${lead.id}`}
-      className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
-    >
-      <Card className="group transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lg">
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
-          {/* Score + banda */}
-          <div className="flex items-center gap-3">
-            <ScoreCircle score={lead.score} variant={variant} />
-            {band ? (
-              <Badge variant={variant}>{BAND_LABEL[band]}</Badge>
-            ) : (
-              <Badge variant="neutral">Sin score</Badge>
-            )}
-          </div>
-
-          {/* Identidad + contacto */}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {fullName}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-              {lead.phone ? (
-                <span className="inline-flex items-center gap-1">
-                  <Phone className="h-3 w-3" />
-                  {lead.phone}
+    <Table>
+      <THead>
+        <tr>
+          <TH>Cliente</TH>
+          <TH>Etapa</TH>
+          <TH>Prioridad</TH>
+          <TH>Operación</TH>
+          <TH className="text-right">Presupuesto</TH>
+          <TH>Asesor</TH>
+          <TH className="text-right">Actividad</TH>
+        </tr>
+      </THead>
+      <TBody>
+        {items.map((lead) => {
+          const fullName = `${lead.firstName}${lead.lastName ? ` ${lead.lastName}` : ""}`;
+          const budget = formatBudget(
+            lead.budgetMin != null ? String(lead.budgetMin) : null,
+            lead.budgetMax != null ? String(lead.budgetMax) : null,
+            lead.currency,
+          );
+          return (
+            <TR key={lead.id} interactive onClick={() => router.push(`/leads/${lead.id}`)}>
+              <TD>
+                <div className="flex items-center gap-3">
+                  <Avatar initials={initials(lead.firstName, lead.lastName)} size="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">{fullName}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {lead.phone ?? CHANNEL_LABEL[lead.channel] ?? lead.channel}
+                    </p>
+                  </div>
+                </div>
+              </TD>
+              <TD>
+                {lead.currentStage ? (
+                  <Badge variant={stageVariant(lead.currentStage.key)}>
+                    {STAGE_LABEL[lead.currentStage.key] ?? lead.currentStage.name}
+                  </Badge>
+                ) : (
+                  <Badge>Sin etapa</Badge>
+                )}
+              </TD>
+              <TD>
+                {lead.scoreBand ? (
+                  <Badge variant={bandVariant(lead.scoreBand)}>{BAND_LABEL[lead.scoreBand]}</Badge>
+                ) : (
+                  <span className="text-xs text-muted-2">—</span>
+                )}
+              </TD>
+              <TD>
+                <span className="text-sm text-muted">
+                  {lead.operationType
+                    ? (OPERATION_LABEL[lead.operationType] ?? lead.operationType)
+                    : "—"}
                 </span>
-              ) : null}
-              <span>{CHANNEL_LABEL[lead.channel] ?? lead.channel}</span>
-            </div>
-          </div>
-
-          {/* Operación + presupuesto */}
-          <div className="min-w-0 sm:w-44">
-            <Badge variant="neutral">
-              {OPERATION_LABEL[lead.operationType] ?? lead.operationType}
-            </Badge>
-            {budget ? (
-              <p className="mt-1.5 truncate text-xs font-medium text-muted">
-                {budget}
-              </p>
-            ) : null}
-          </div>
-
-          {/* Etapa actual */}
-          <div className="sm:w-40">
-            {lead.currentStage ? (
-              <Badge variant="primary">
-                {STAGE_LABEL[lead.currentStage.key] ?? lead.currentStage.name}
-              </Badge>
-            ) : (
-              <Badge variant="neutral">Sin etapa</Badge>
-            )}
-          </div>
-
-          {/* Asesor asignado */}
-          <div className="flex items-center gap-2 sm:w-44">
-            {lead.assignedTo ? (
-              <>
-                <Avatar
-                  size="sm"
-                  ring={false}
-                  initials={initials(
-                    lead.assignedTo.firstName,
-                    lead.assignedTo.lastName,
-                  )}
-                />
-                <span className="truncate text-xs text-muted">
-                  {lead.assignedTo.firstName} {lead.assignedTo.lastName}
-                </span>
-              </>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                <span className="grid h-8 w-8 place-items-center rounded-full border border-dashed border-border text-muted">
-                  <UserRound className="h-4 w-4" />
-                </span>
-                Sin asignar
-              </span>
-            )}
-          </div>
-
-          {/* Última actividad */}
-          <div className="shrink-0 text-right text-xs text-muted sm:w-24">
-            {timeAgo(lead.lastActivityAt)}
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+              </TD>
+              <TD className="text-right">
+                <span className="text-sm tabular-nums text-foreground">{budget ?? "—"}</span>
+              </TD>
+              <TD>
+                {lead.assignedTo ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      size="xs"
+                      initials={initials(lead.assignedTo.firstName, lead.assignedTo.lastName)}
+                    />
+                    <span className="truncate text-xs text-muted">
+                      {lead.assignedTo.firstName} {lead.assignedTo.lastName}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-2">Sin asignar</span>
+                )}
+              </TD>
+              <TD className="text-right">
+                <span className="text-xs text-muted-2">{timeAgo(lead.lastActivityAt)}</span>
+              </TD>
+            </TR>
+          );
+        })}
+      </TBody>
+    </Table>
   );
 }
 
-function ScoreCircle({
-  score,
-  variant,
-}: {
-  score: number;
-  variant: ReturnType<typeof bandVariant> | "neutral";
-}) {
-  const colorByVariant: Record<string, string> = {
-    hot: "border-hot text-hot",
-    warm: "border-warm text-warm",
-    cold: "border-cold text-cold",
-    neutral: "border-border-strong text-muted",
-  };
-
-  return (
-    <div
-      className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-surface-2 text-sm font-bold",
-        colorByVariant[variant] ?? colorByVariant.neutral,
-      )}
-      aria-label={`Score ${score}`}
-    >
-      {score}
-    </div>
-  );
+function formatBudget(min: string | null, max: string | null, currency: string): string | null {
+  const hasMin = min != null && min.trim() !== "";
+  const hasMax = max != null && max.trim() !== "";
+  if (!hasMin && !hasMax) return null;
+  if (hasMin && hasMax) return `${formatMoney(min, currency)} – ${formatMoney(max, currency)}`;
+  return formatMoney(hasMin ? min : max, currency);
 }
 
-// ---------------------------------------------------------------------------
-// Paginación
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Paginación                                                          */
+/* ------------------------------------------------------------------ */
 
 function Pagination({
   page,
@@ -476,21 +353,11 @@ function Pagination({
           Página {page} de {Math.max(1, pageCount)}
         </span>
         <div className="flex items-center gap-1.5">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page <= 1}
-            onClick={onPrev}
-          >
+          <Button variant="secondary" size="sm" disabled={page <= 1} onClick={onPrev}>
             <ChevronLeft className="h-4 w-4" />
             Anterior
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page >= pageCount}
-            onClick={onNext}
-          >
+          <Button variant="secondary" size="sm" disabled={page >= pageCount} onClick={onNext}>
             Siguiente
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -500,9 +367,9 @@ function Pagination({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Modal de alta de lead
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Alta de lead                                                        */
+/* ------------------------------------------------------------------ */
 
 type NewLeadForm = {
   firstName: string;
@@ -529,9 +396,11 @@ const EMPTY_FORM: NewLeadForm = {
 };
 
 function NewLeadModal({
+  open,
   onClose,
   onCreated,
 }: {
+  open: boolean;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -554,15 +423,6 @@ function NewLeadModal({
       },
     }),
   );
-
-  // Cerrar con Escape.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const update = <K extends keyof NewLeadForm>(key: K, value: NewLeadForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -602,194 +462,119 @@ function NewLeadModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm sm:items-center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nuevo lead"
+      description="Cargá los datos básicos. Podés completar el resto más tarde."
     >
-      <Card className="w-full max-w-lg">
-        <div className="flex items-center justify-between border-b border-border p-5">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Nuevo lead</h2>
-            <p className="mt-0.5 text-xs text-muted">
-              Cargá los datos básicos. Podés completar el resto más tarde.
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label="Cerrar"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Field label="Nombre" required>
+            <Input
+              value={form.firstName}
+              onChange={(e) => update("firstName", e.target.value)}
+              placeholder="Juan"
+              autoFocus
+            />
+          </Field>
+          <Field label="Apellido">
+            <Input
+              value={form.lastName}
+              onChange={(e) => update("lastName", e.target.value)}
+              placeholder="Pérez"
+            />
+          </Field>
+          <Field label="Teléfono">
+            <Input
+              value={form.phone}
+              onChange={(e) => update("phone", e.target.value)}
+              placeholder="+54 9 11 5555-5555"
+              inputMode="tel"
+            />
+          </Field>
+          <Field label="Email">
+            <Input
+              value={form.email}
+              onChange={(e) => update("email", e.target.value)}
+              placeholder="juan@email.com"
+              inputMode="email"
+            />
+          </Field>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Nombre" required>
-              <TextInput
-                value={form.firstName}
-                onChange={(v) => update("firstName", v)}
-                placeholder="Juan"
-                autoFocus
-              />
-            </Field>
-            <Field label="Apellido">
-              <TextInput
-                value={form.lastName}
-                onChange={(v) => update("lastName", v)}
-                placeholder="Pérez"
-              />
-            </Field>
-            <Field label="Teléfono">
-              <TextInput
-                value={form.phone}
-                onChange={(v) => update("phone", v)}
-                placeholder="+54 9 11 5555-5555"
-                inputMode="tel"
-              />
-            </Field>
-            <Field label="Email">
-              <TextInput
-                value={form.email}
-                onChange={(v) => update("email", v)}
-                placeholder="juan@email.com"
-                inputMode="email"
-              />
-            </Field>
-          </div>
+        <Field label="Canal">
+          <ChipGroup
+            options={Object.values(LeadChannel)}
+            value={form.channel}
+            labels={CHANNEL_LABEL}
+            onChange={(v) => update("channel", v)}
+          />
+        </Field>
 
-          <Field label="Canal">
-            <ChipGroup
-              options={Object.values(LeadChannel)}
-              value={form.channel}
-              labels={CHANNEL_LABEL}
-              onChange={(v) => update("channel", v)}
+        <Field label="Operación">
+          <ChipGroup
+            options={Object.values(OperationType)}
+            value={form.operationType}
+            labels={OPERATION_LABEL}
+            onChange={(v) => update("operationType", v)}
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-5">
+          <Field label="Presupuesto mín.">
+            <Input
+              value={form.budgetMin}
+              onChange={(e) => update("budgetMin", e.target.value)}
+              placeholder="0"
+              inputMode="numeric"
             />
           </Field>
-
-          <Field label="Operación">
-            <ChipGroup
-              options={Object.values(OperationType)}
-              value={form.operationType}
-              labels={OPERATION_LABEL}
-              onChange={(v) => update("operationType", v)}
+          <Field label="Presupuesto máx.">
+            <Input
+              value={form.budgetMax}
+              onChange={(e) => update("budgetMax", e.target.value)}
+              placeholder="0"
+              inputMode="numeric"
             />
           </Field>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Presupuesto mín.">
-              <TextInput
-                value={form.budgetMin}
-                onChange={(v) => update("budgetMin", v)}
-                placeholder="0"
-                inputMode="numeric"
-              />
-            </Field>
-            <Field label="Presupuesto máx.">
-              <TextInput
-                value={form.budgetMax}
-                onChange={(v) => update("budgetMax", v)}
-                placeholder="0"
-                inputMode="numeric"
-              />
-            </Field>
-          </div>
+        <Field label="Notas">
+          <Textarea
+            value={form.notes}
+            onChange={(e) => update("notes", e.target.value)}
+            rows={3}
+            placeholder="Contexto, preferencias, cómo llegó…"
+          />
+        </Field>
 
-          <Field label="Notas">
-            <textarea
-              value={form.notes}
-              onChange={(e) => update("notes", e.target.value)}
-              rows={3}
-              placeholder="Contexto, preferencias, cómo llegó…"
-              className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          </Field>
+        {error ? (
+          <p className="rounded-xl bg-(--badge-danger-bg) px-3.5 py-2.5 text-xs text-(--badge-danger-fg)">
+            {error}
+          </p>
+        ) : null}
 
-          {error ? (
-            <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="mt-1 flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={createLead.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" disabled={createLead.isPending}>
-              {createLead.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Creando…
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" />
-                  Crear lead
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </Card>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Controles de formulario reutilizables
-// ---------------------------------------------------------------------------
-
-function Field({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-muted">
-        {label}
-        {required ? <span className="text-danger"> *</span> : null}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function TextInput({
-  value,
-  onChange,
-  placeholder,
-  inputMode,
-  autoFocus,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-  autoFocus?: boolean;
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      autoFocus={autoFocus}
-      className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-primary/40"
-    />
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={createLead.isPending}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={createLead.isPending}>
+            {createLead.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creando…
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                Crear lead
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -812,9 +597,9 @@ function ChipGroup({
           type="button"
           onClick={() => onChange(option)}
           className={cn(
-            "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+            "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-[180ms] ease-out",
             value === option
-              ? "border-primary/60 bg-primary/15 text-primary"
+              ? "border-primary/40 bg-primary-soft text-primary"
               : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground",
           )}
         >
@@ -825,48 +610,16 @@ function ChipGroup({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatBudget(
-  min: number | string | null,
-  max: number | string | null,
-  currency: string,
-): string | null {
-  const hasMin = min != null && `${min}`.trim() !== "";
-  const hasMax = max != null && `${max}`.trim() !== "";
-  if (!hasMin && !hasMax) return null;
-  if (hasMin && hasMax) {
-    return `${formatMoney(min, currency)} – ${formatMoney(max, currency)}`;
-  }
-  return formatMoney(hasMin ? min : max, currency);
-}
-
-// ---------------------------------------------------------------------------
-// Estado de carga
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Skeleton                                                            */
+/* ------------------------------------------------------------------ */
 
 function LeadListSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Card key={index}>
-          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-52" />
-            </div>
-            <Skeleton className="h-5 w-24 rounded-full sm:w-40" />
-            <Skeleton className="h-8 w-32 rounded-full" />
-            <Skeleton className="h-3 w-16" />
-          </CardContent>
-        </Card>
-      ))}
+    <div className="flex flex-col gap-4">
+      <Skeleton className="h-10 max-w-md" />
+      <Skeleton className="h-8" />
+      <Skeleton className="h-96 rounded-2xl" />
     </div>
   );
 }

@@ -1,12 +1,21 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+/**
+ * Card base del sistema: superficie blanca, borde suave, radio 20px y
+ * sombra apenas perceptible. La elevación al hover es opcional (`interactive`).
+ */
+export function Card({
+  className,
+  interactive = false,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { interactive?: boolean }) {
   return (
     <div
       className={cn(
-        "glass rounded-2xl transition-colors duration-300",
-        "hover:border-white/10",
+        "rounded-2xl border border-border bg-surface shadow-card",
+        interactive &&
+          "transition-[box-shadow,border-color,transform] duration-[180ms] ease-out hover:shadow-card-hover hover:border-border-strong",
         className,
       )}
       {...props}
@@ -15,18 +24,19 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 pb-3", className)} {...props} />;
+  return <div className={cn("px-6 pt-6 pb-4", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3
-      className={cn("text-[11px] font-semibold uppercase tracking-wider text-muted", className)}
-      {...props}
-    />
+    <h3 className={cn("text-sm font-semibold text-foreground", className)} {...props} />
   );
 }
 
+export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn("mt-1 text-sm text-muted", className)} {...props} />;
+}
+
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 pt-0", className)} {...props} />;
+  return <div className={cn("px-6 pb-6", className)} {...props} />;
 }

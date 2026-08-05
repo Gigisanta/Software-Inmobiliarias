@@ -19,6 +19,7 @@
     "db:studio": "pnpm --filter @reos/db studio"
   },
   "devDependencies": {
+    "next": "^15.1.3",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
     "@types/node": "^22.10.2",

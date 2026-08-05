@@ -1,55 +1,54 @@
 "use client";
 
-import { CheckSquare, Phone, FileText, MapPin } from "lucide-react";
+import { ListChecks, Phone, FileText, MapPin } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 
 export default function TareasPage() {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col px-4 py-6">
+    <div className="mx-auto w-full max-w-3xl">
       <PageHeader
         title="Tareas"
-        subtitle="Nada se te escapa: seguimientos, documentación y coordinación en orden"
-        icon={<CheckSquare className="h-5 w-5" />}
+        subtitle="Seguimientos, documentación y coordinación, en orden"
       />
 
       <div className="relative">
-        {/* Tarjetas fantasma difuminadas de fondo */}
+        {/* Vista previa difuminada de lo que viene */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 flex flex-col gap-3 blur-[2px] select-none"
+          className="pointer-events-none absolute inset-0 flex flex-col gap-4 blur-[2px] select-none"
         >
           <GhostTask
-            icon={<Phone className="h-3.5 w-3.5" />}
+            icon={<Phone className="h-4 w-4" strokeWidth={1.75} />}
             title="Llamar a Lucía Martínez"
             due="Vence hoy"
             tag="Llamada"
-            variant="hot"
+            variant="amber"
           />
           <GhostTask
-            icon={<FileText className="h-3.5 w-3.5" />}
+            icon={<FileText className="h-4 w-4" strokeWidth={1.75} />}
             title="Enviar documentación de reserva a Juan Pérez"
             due="Mañana"
             tag="Documentación"
-            variant="primary"
+            variant="sage"
           />
           <GhostTask
-            icon={<MapPin className="h-3.5 w-3.5" />}
+            icon={<MapPin className="h-4 w-4" strokeWidth={1.75} />}
             title="Coordinar visita — Casa en Tigre"
             due="Vie 4 jul"
             tag="Visita"
-            variant="neutral"
+            variant="sand"
           />
         </div>
 
         <div className="relative">
           <EmptyState
-            icon={<CheckSquare className="h-8 w-8" />}
+            icon={<ListChecks className="h-6 w-6" strokeWidth={1.5} />}
             title="Gestión de tareas en camino"
-            description="Vas a organizar todo lo que hace avanzar un lead: llamar, enviar documentación, coordinar visitas y programar seguimientos, con recordatorios y prioridades claras para que nada quede sin hacer."
+            description="Vas a organizar todo lo que hace avanzar una operación: llamar, enviar documentación, coordinar visitas y programar seguimientos, con recordatorios y prioridades claras."
           />
         </div>
       </div>
@@ -68,17 +67,17 @@ function GhostTask({
   title: string;
   due: string;
   tag: string;
-  variant: "hot" | "primary" | "neutral";
+  variant: BadgeVariant;
 }) {
   return (
-    <Card className="opacity-40">
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-border-strong bg-surface-2" />
-        <div className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface-2 text-muted">
+    <Card className="opacity-50">
+      <CardContent className="flex items-center gap-4 px-6 py-5">
+        <div className="grid h-5 w-5 shrink-0 place-items-center rounded-md border border-border-strong bg-surface" />
+        <div className="grid h-9 w-9 place-items-center rounded-lg bg-surface-2 text-muted">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+          <p className="truncate text-sm font-medium text-foreground">{title}</p>
           <p className="mt-0.5 text-xs text-muted-2">{due}</p>
         </div>
         <Badge variant={variant}>{tag}</Badge>

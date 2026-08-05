@@ -38,3 +38,5 @@ coverage/
 
 # Artefactos de TypeScript
 *.tsbuildinfo
+
+.vercel

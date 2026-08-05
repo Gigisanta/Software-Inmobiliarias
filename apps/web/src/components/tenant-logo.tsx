@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Logo de la inmobiliaria (tenant) — esquina superior izquierda. */
+/** Logo de la inmobiliaria (tenant): monograma sobrio + nombre. */
 export function TenantLogo() {
   const trpc = useTRPC();
   const { data, isLoading } = useQuery(trpc.health.me.queryOptions());
@@ -13,9 +13,9 @@ export function TenantLogo() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-xl" />
-        <Skeleton className="h-4 w-32" />
+      <div className="flex items-center gap-2.5">
+        <Skeleton className="h-8 w-8 rounded-lg" />
+        <Skeleton className="h-4 w-28" />
       </div>
     );
   }
@@ -30,17 +30,11 @@ export function TenantLogo() {
     .toUpperCase();
 
   return (
-    <Link href="/" className="group flex items-center gap-3">
-      <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent font-bold text-white shadow-lg shadow-primary/30 transition-transform group-hover:scale-105">
+    <Link href="/" className="flex min-w-0 items-center gap-2.5">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
         {monogram}
       </div>
-      <div className="hidden leading-tight sm:block">
-        <div className="text-sm font-semibold">{name}</div>
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-success live-dot" />
-          RealEstate OS · {tenant?.plan ?? "—"}
-        </div>
-      </div>
+      <span className="truncate text-sm font-semibold text-foreground">{name}</span>
     </Link>
   );
 }

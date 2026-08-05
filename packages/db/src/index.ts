@@ -11,6 +11,10 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    // Neon (pooler) suma latencia por query; las transacciones interactivas
+    // con varias escrituras (lead + historial + outbox + auditoría) superan
+    // el timeout por defecto de 5 s.
+    transactionOptions: { maxWait: 10_000, timeout: 30_000 },
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -1,372 +1,253 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { KanbanSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@reos/api";
+import { Columns3, GripVertical } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
 import { PipelineStageKey } from "@reos/core";
 
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge, bandVariant } from "@/components/ui/badge";
+import { Badge, stageVariant, bandVariant, BAND_LABEL } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
-import { cn, formatMoney, timeAgo } from "@/lib/utils";
+import { cn, formatMoney, timeAgo, initials } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Tipos derivados por inferencia del contrato del board (sin `any`).
-// ---------------------------------------------------------------------------
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type BoardColumn = RouterOutputs["pipeline"]["board"][number];
+type BoardLead = BoardColumn["leads"][number];
 
-type BoardColumn = {
-  stage: {
-    id: string;
-    key: PipelineStageKey;
-    name: string;
-    order: number;
-    probability: number;
-  };
-  count: number;
-  potentialValue: number;
-  leads: BoardLead[];
-};
-
-type BoardLead = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  channel: string;
-  operationType: string;
-  budgetMax: string | null;
-  currency: string;
-  score: number;
-  scoreBand: "CALIENTE" | "TIBIO" | "FRIO" | null;
-  currentStageId: string;
-  assignedToId: string | null;
-  lastActivityAt: string | Date;
-};
-
-const BAND_LABEL: Record<NonNullable<BoardLead["scoreBand"]>, string> = {
-  CALIENTE: "Caliente",
-  TIBIO: "Tibio",
-  FRIO: "Frío",
-};
-
-// ---------------------------------------------------------------------------
-// Página
-// ---------------------------------------------------------------------------
+/** Próxima acción sugerida según la banda del score. */
+function nextAction(band?: string | null): string {
+  if (band === "CALIENTE") return "Llamar hoy";
+  if (band === "TIBIO") return "Programar seguimiento";
+  return "Enviar información";
+}
 
 export default function PipelinePage() {
   const trpc = useTRPC();
+  const qc = useQueryClient();
   const board = useQuery(trpc.pipeline.board.queryOptions());
 
-  const qc = useQueryClient();
   const changeStage = useMutation(
     trpc.lead.changeStage.mutationOptions({
       onSuccess: () => qc.invalidateQueries(),
     }),
   );
 
-  const columns = (board.data ?? []) as BoardColumn[];
+  const columns = board.data ?? [];
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+
+  function handleDrop(e: React.DragEvent, toStageKey: string) {
+    e.preventDefault();
+    setDragOverStage(null);
+    const leadId = e.dataTransfer.getData("text/lead-id");
+    const fromStageKey = e.dataTransfer.getData("text/from-stage");
+    if (!leadId || fromStageKey === toStageKey) return;
+    changeStage.mutate({ leadId, toStageKey: toStageKey as PipelineStageKey });
+  }
 
   return (
-    <div className="flex h-full min-h-screen flex-col">
+    <div>
       <PageHeader
         title="Pipeline"
-        subtitle="Arrastrá o movés leads por el embudo"
-        icon={<KanbanSquare className="h-5 w-5" />}
+        subtitle="Arrastrá cada operación a su siguiente etapa"
       />
 
-      <div className="flex-1 overflow-x-auto px-4 pb-8 pt-4">
-        {board.isLoading ? (
-          <BoardSkeleton />
-        ) : board.isError ? (
-          <div className="flex h-full items-center justify-center">
-            <EmptyState
-              icon={<KanbanSquare className="h-8 w-8" />}
-              title="No pudimos cargar el pipeline"
-              description="Ocurrió un error al traer las etapas. Volvé a intentar en unos segundos."
-            />
-          </div>
-        ) : columns.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <EmptyState
-              icon={<KanbanSquare className="h-8 w-8" />}
-              title="Todavía no hay etapas"
-              description="Configurá tu embudo para empezar a mover leads."
-            />
-          </div>
-        ) : (
-          <div className="flex gap-4">
-            {columns.map((column, index) => (
+      {board.isLoading ? (
+        <BoardSkeleton />
+      ) : board.isError ? (
+        <EmptyState
+          icon={<Columns3 className="h-6 w-6" strokeWidth={1.5} />}
+          title="No pudimos cargar el pipeline"
+          description="Ocurrió un error al traer las etapas. Volvé a intentar en unos segundos."
+        />
+      ) : columns.length === 0 ? (
+        <EmptyState
+          icon={<Columns3 className="h-6 w-6" strokeWidth={1.5} />}
+          title="Todavía no hay etapas"
+          description="Configurá tu embudo para empezar a mover operaciones."
+        />
+      ) : (
+        <div className="-mx-6 overflow-x-auto px-6 pb-4 lg:-mx-10 lg:px-10">
+          <div className="flex gap-5">
+            {columns.map((column) => (
               <StageColumn
                 key={column.stage.id}
                 column={column}
-                prevStageKey={columns[index - 1]?.stage.key ?? null}
-                nextStageKey={columns[index + 1]?.stage.key ?? null}
-                onMove={(leadId, toStageKey) =>
-                  changeStage.mutate({ leadId, toStageKey })
-                }
+                isDragOver={dragOverStage === column.stage.key}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverStage(column.stage.key);
+                }}
+                onDragLeave={() => setDragOverStage(null)}
+                onDrop={(e) => handleDrop(e, column.stage.key)}
                 isMoving={changeStage.isPending}
               />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Columna de etapa
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Columna                                                             */
+/* ------------------------------------------------------------------ */
 
 function StageColumn({
   column,
-  prevStageKey,
-  nextStageKey,
-  onMove,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
   isMoving,
 }: {
   column: BoardColumn;
-  prevStageKey: PipelineStageKey | null;
-  nextStageKey: PipelineStageKey | null;
-  onMove: (leadId: string, toStageKey: PipelineStageKey) => void;
+  isDragOver: boolean;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent) => void;
   isMoving: boolean;
 }) {
   const { stage, count, potentialValue, leads } = column;
 
   return (
-    <section className="flex w-[300px] shrink-0 flex-col">
-      <header className="sticky top-0 z-10 rounded-xl border border-border bg-surface/95 p-3 backdrop-blur">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="truncate text-sm font-semibold text-foreground">
-            {stage.name}
-          </h2>
-          <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">
+    <section
+      className={cn(
+        "flex w-[290px] shrink-0 flex-col rounded-2xl p-2 transition-colors duration-[180ms] ease-out",
+        isDragOver ? "bg-primary-soft" : "bg-transparent",
+      )}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <header className="flex items-center justify-between gap-2 px-2 pb-3 pt-1">
+        <div className="flex items-center gap-2">
+          <h2 className="truncate text-sm font-semibold text-foreground">{stage.name}</h2>
+          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted">
             {count}
           </span>
         </div>
-        <div className="mt-1 flex items-center justify-between text-xs text-muted-2">
-          <span>{Math.round(stage.probability)}% prob.</span>
-          <span className="font-medium text-muted">
-            {formatMoney(potentialValue)}
-          </span>
-        </div>
+        <span className="shrink-0 text-[11px] tabular-nums text-muted-2">
+          {formatMoney(potentialValue)}
+        </span>
       </header>
 
-      <div className="mt-3 flex flex-col gap-3">
+      <div className="flex min-h-24 flex-col gap-3">
         {leads.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-xs text-muted-2">
-            Sin leads
+          <div
+            className={cn(
+              "rounded-2xl border border-dashed px-3 py-10 text-center text-xs transition-colors duration-[180ms]",
+              isDragOver ? "border-primary/40 text-primary" : "border-border text-muted-2",
+            )}
+          >
+            {isDragOver ? "Soltar acá" : "Sin operaciones"}
           </div>
         ) : (
-          leads.map((lead) => (
-            <LeadCard
-              key={lead.id}
-              lead={lead}
-              prevStageKey={prevStageKey}
-              nextStageKey={nextStageKey}
-              onMove={onMove}
-              isMoving={isMoving}
-            />
-          ))
+          leads.map((lead) => <KanbanCard key={lead.id} lead={lead} isMoving={isMoving} stageKey={stage.key} />)
         )}
       </div>
     </section>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tarjeta de lead
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Tarjeta de operación                                                */
+/* ------------------------------------------------------------------ */
 
-function LeadCard({
+function KanbanCard({
   lead,
-  prevStageKey,
-  nextStageKey,
-  onMove,
+  stageKey,
   isMoving,
 }: {
   lead: BoardLead;
-  prevStageKey: PipelineStageKey | null;
-  nextStageKey: PipelineStageKey | null;
-  onMove: (leadId: string, toStageKey: PipelineStageKey) => void;
+  stageKey: string;
   isMoving: boolean;
 }) {
-  const band = lead.scoreBand;
-  const variant = band ? bandVariant(band) : "neutral";
-
-  const budget =
-    lead.budgetMax != null
-      ? formatMoney(Number(lead.budgetMax), lead.currency)
-      : null;
+  const router = useRouter();
+  const [dragging, setDragging] = useState(false);
+  const budget = lead.budgetMax != null ? formatMoney(String(lead.budgetMax), lead.currency) : null;
 
   return (
-    <Card className="group relative transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-lg">
-      <Link
-        href={`/leads/${lead.id}`}
-        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        <CardContent className="p-3">
-          <div className="flex items-start gap-3">
-            <ScoreCircle score={lead.score} variant={variant} />
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {lead.firstName} {lead.lastName}
-                </p>
-              </div>
-
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {band ? (
-                  <Badge variant={variant}>{BAND_LABEL[band]}</Badge>
-                ) : null}
-                <Badge variant="neutral">{lead.operationType}</Badge>
-              </div>
-
-              {budget ? (
-                <p className="mt-2 text-xs font-medium text-muted">{budget}</p>
-              ) : null}
-
-              <p className="mt-1 text-xs text-muted-2">
-                {timeAgo(lead.lastActivityAt)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Link>
-
-      <StageControls
-        leadId={lead.id}
-        prevStageKey={prevStageKey}
-        nextStageKey={nextStageKey}
-        onMove={onMove}
-        isMoving={isMoving}
-      />
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Score en círculo, coloreado por banda
-// ---------------------------------------------------------------------------
-
-function ScoreCircle({
-  score,
-  variant,
-}: {
-  score: number;
-  variant: ReturnType<typeof bandVariant> | "neutral";
-}) {
-  const colorByVariant: Record<string, string> = {
-    hot: "border-hot text-hot",
-    warm: "border-warm text-warm",
-    cold: "border-cold text-cold",
-    neutral: "border-border-strong text-muted",
-  };
-
-  return (
-    <div
+    <article
+      draggable={!isMoving}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/lead-id", lead.id);
+        e.dataTransfer.setData("text/from-stage", stageKey);
+        e.dataTransfer.effectAllowed = "move";
+        setDragging(true);
+      }}
+      onDragEnd={() => setDragging(false)}
+      onClick={() => router.push(`/leads/${lead.id}`)}
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 bg-surface-2 text-sm font-bold",
-        colorByVariant[variant] ?? colorByVariant.neutral,
+        "animate-in group cursor-pointer rounded-2xl border border-border bg-surface p-4 shadow-card",
+        "transition-[box-shadow,border-color,opacity] duration-[180ms] ease-out",
+        "hover:border-border-strong hover:shadow-card-hover",
+        dragging && "opacity-50",
+        isMoving && "pointer-events-none opacity-70",
       )}
-      aria-label={`Score ${score}`}
     >
-      {score}
-    </div>
+      <div className="flex items-start justify-between gap-2">
+        <p className="truncate text-sm font-semibold text-foreground">
+          {lead.firstName} {lead.lastName}
+        </p>
+        <GripVertical className="h-4 w-4 shrink-0 text-transparent transition-colors duration-[180ms] group-hover:text-muted-2" />
+      </div>
+
+      {budget ? (
+        <p className="mt-1.5 text-sm font-medium tabular-nums text-foreground">{budget}</p>
+      ) : null}
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {lead.scoreBand ? (
+          <Badge variant={bandVariant(lead.scoreBand)}>{BAND_LABEL[lead.scoreBand]}</Badge>
+        ) : null}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+        <div className="flex min-w-0 items-center gap-2">
+          {lead.assignedTo ? (
+            <>
+              <Avatar
+                size="xs"
+                initials={initials(lead.assignedTo.firstName, lead.assignedTo.lastName)}
+              />
+              <span className="truncate text-[11px] text-muted">
+                {lead.assignedTo.firstName}
+              </span>
+            </>
+          ) : (
+            <span className="text-[11px] text-muted-2">Sin asignar</span>
+          )}
+        </div>
+        <span className="shrink-0 text-[11px] text-muted-2">{timeAgo(lead.lastActivityAt)}</span>
+      </div>
+
+      <p className="mt-2 text-[11px] font-medium text-primary">{nextAction(lead.scoreBand)}</p>
+    </article>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Controles para mover de etapa (◀ / ▶), sin drag&drop
-// ---------------------------------------------------------------------------
-
-function StageControls({
-  leadId,
-  prevStageKey,
-  nextStageKey,
-  onMove,
-  isMoving,
-}: {
-  leadId: string;
-  prevStageKey: PipelineStageKey | null;
-  nextStageKey: PipelineStageKey | null;
-  onMove: (leadId: string, toStageKey: PipelineStageKey) => void;
-  isMoving: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between border-t border-border px-2 py-1.5">
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={!prevStageKey || isMoving}
-        aria-label="Mover a etapa anterior"
-        title="Etapa anterior"
-        onClick={() => prevStageKey && onMove(leadId, prevStageKey)}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-
-      <span className="text-[10px] uppercase tracking-wide text-muted-2">
-        Mover
-      </span>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={!nextStageKey || isMoving}
-        aria-label="Mover a etapa siguiente"
-        title="Etapa siguiente"
-        onClick={() => nextStageKey && onMove(leadId, nextStageKey)}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Estado de carga
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------ */
+/* Skeleton                                                            */
+/* ------------------------------------------------------------------ */
 
 function BoardSkeleton() {
   return (
-    <div className="flex gap-4">
-      {Array.from({ length: 5 }).map((_, columnIndex) => (
-        <div key={columnIndex} className="flex w-[300px] shrink-0 flex-col">
-          <div className="rounded-xl border border-border bg-surface p-3">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-5 w-6 rounded-full" />
-            </div>
-            <div className="mt-2 flex items-center justify-between">
-              <Skeleton className="h-3 w-14" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-col gap-3">
-            {Array.from({ length: 3 }).map((_, cardIndex) => (
-              <div
-                key={cardIndex}
-                className="rounded-xl border border-border bg-surface p-3"
-              >
-                <div className="flex items-start gap-3">
-                  <Skeleton className="h-9 w-9 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                    <Skeleton className="h-3 w-2/5" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="flex gap-5 overflow-hidden">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex w-[290px] shrink-0 flex-col gap-3">
+          <Skeleton className="h-8" />
+          {Array.from({ length: 3 }).map((_, j) => (
+            <Skeleton key={j} className="h-36 rounded-2xl" />
+          ))}
         </div>
       ))}
     </div>
