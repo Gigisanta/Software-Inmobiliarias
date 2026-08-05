@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, ChevronRight, Search } from "lucide-react";
+import { Bell, BookOpen, ChevronRight, Search } from "lucide-react";
 import { NAV_ITEMS } from "@/components/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
+import { useGuide } from "@/components/guide";
 
 /** Deriva los breadcrumbs desde la ruta actual. */
 function useBreadcrumbs(pathname: string): { label: string; href?: string }[] {
@@ -30,6 +31,7 @@ export function Header() {
   const router = useRouter();
   const crumbs = useBreadcrumbs(pathname);
   const [query, setQuery] = useState("");
+  const { startTour } = useGuide();
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -77,6 +79,17 @@ export function Header() {
           className="h-8 w-full rounded-lg border border-border bg-surface-2/60 pl-8 pr-3 text-[13px] text-foreground placeholder:text-muted-2 transition-[border-color,background-color] duration-[180ms] focus:border-primary/50 focus:bg-surface focus:outline-none"
         />
       </form>
+
+      {/* Guía de la plataforma */}
+      <button
+        type="button"
+        onClick={startTour}
+        title="Recorrido guiado de la plataforma"
+        className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-muted transition-colors duration-[180ms] hover:bg-surface-2 hover:text-foreground"
+      >
+        <BookOpen className="h-4 w-4" strokeWidth={1.75} />
+        <span className="hidden sm:inline">Guía</span>
+      </button>
 
       {/* Notificaciones (discretas) */}
       <button
