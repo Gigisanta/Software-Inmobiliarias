@@ -3,9 +3,10 @@
  *
  * Dos fuentes de identidad:
  *  1. `principal` provisto por el caller (la app Next lo resuelve desde Clerk).
- *  2. Stub de desarrollo: si DEV_AUTH=true y no llega principal, se resuelve un
- *     usuario del tenant demo (rol elegible con el header `x-dev-role`).
- *     NUNCA se activa en producción.
+ *  2. Stub de demo: si DEV_AUTH=true (opt-in explícito) y no llega principal,
+ *     se resuelve un usuario del tenant demo (rol elegible con `x-dev-role`).
+ *     ATENCIÓN: con DEV_AUTH=true el deploy queda público sobre el tenant demo.
+ *     Apagar (DEV_AUTH=false o quitar la variable) cuando haya datos reales.
  */
 import { prisma } from "@reos/db";
 import type { AuthPrincipal } from "@reos/auth";
@@ -30,11 +31,11 @@ export interface Context {
 }
 
 async function resolveDevPrincipal(headers: Headers): Promise<AuthPrincipal | null> {
-  // El stub de dev se desactiva en producción, si Clerk está configurado,
-  // o si explícitamente DEV_AUTH="false".
-  if (process.env.NODE_ENV === "production") return null;
+  // El stub exige opt-in explícito (DEV_AUTH=true) y se desactiva apenas
+  // Clerk está configurado. Esto permite la demo pública en Vercel; quitar
+  // DEV_AUTH del entorno cuando el sistema maneje datos reales.
   if (process.env.CLERK_SECRET_KEY) return null;
-  if (process.env.DEV_AUTH === "false") return null;
+  if (process.env.DEV_AUTH !== "true") return null;
 
   const roleHeader = (headers.get("x-dev-role") ?? "OWNER").toUpperCase();
   const email = headers.get("x-dev-email") ?? DEV_ROLE_EMAILS[roleHeader] ?? DEV_ROLE_EMAILS.OWNER!;
