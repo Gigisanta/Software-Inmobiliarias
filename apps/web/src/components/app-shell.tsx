@@ -6,7 +6,7 @@ import { Header } from "@/components/header";
 import { GuideProvider, PageGuide } from "@/components/guide";
 
 /** Rutas que se muestran sin la estructura de la app (marketing/landing). */
-const BARE_ROUTES = ["/landing", "/login", "/presentacion"];
+const BARE_ROUTES = ["/landing", "/login", "/presentacion", "/planes"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

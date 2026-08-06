@@ -665,11 +665,16 @@ function ClosingSection() {
           Cada consulta respondida al momento, cada interesado clasificado, cada visita agendada. Y
           cada mañana, una lista clara de con quién vale la pena hablar.
         </p>
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <Link href="/" target="_blank">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/planes" target="_blank">
             <Button size="lg">
-              Recorrer el CRM en vivo
+              Ver planes y precios
               <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/" target="_blank">
+            <Button variant="secondary" size="lg">
+              Recorrer el CRM en vivo
             </Button>
           </Link>
         </div>
