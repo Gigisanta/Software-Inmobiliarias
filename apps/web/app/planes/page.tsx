@@ -27,6 +27,8 @@ import {
   Star,
   Headphones,
   Hand,
+  HeartHandshake,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,7 +42,7 @@ import { cn } from "@/lib/utils";
 
 const PRICES = {
   basico: 150,
-  pro: 250,
+  pro: 300,
 };
 
 const BASICO_INCLUYE = [
@@ -219,6 +221,12 @@ const GROUPS: FeatureGroup[] = [
         desc: "La plataforma se explica sola, pantalla por pantalla.",
         basico: true,
         pro: true,
+      },
+      {
+        name: "Acompañamiento y capacitación",
+        desc: "Te acompañamos en la implementación y capacitamos a tu equipo, no te dejamos sola con el sistema.",
+        basico: "Incluido",
+        pro: "Dedicado",
       },
       {
         name: "Soporte",
@@ -410,8 +418,46 @@ function PlanCards() {
         </FadeIn>
       </div>
 
-      <p className="mt-6 text-center text-xs text-muted-2">
-        Precios en USD. Puesta en marcha única (alta, número de WhatsApp y capacitación) según plan.
+      {/* No es solo un software: es un servicio con gente atrás */}
+      <div className="mt-6 rounded-2xl border border-primary/25 bg-primary-soft/50 p-6">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Incluido en todos los planes
+          </p>
+          <h3 className="text-lg font-semibold text-foreground">
+            No te entregamos un software y desaparecemos
+          </h3>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex items-start gap-3.5 rounded-xl bg-surface p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+              <HeartHandshake className="h-5 w-5" strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Acompañamiento</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                Te acompañamos en la puesta en marcha y en el día a día. Un equipo detrás, no un
+                sistema que te deja sola.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3.5 rounded-xl bg-surface p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+              <GraduationCap className="h-5 w-5" strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Capacitación</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                Capacitamos a tu equipo paso a paso, hasta que usen la plataforma con confianza desde
+                el primer día.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-5 text-center text-xs text-muted-2">
+        Precios en USD por mes. Puesta en marcha única (alta y número de WhatsApp) según plan.
       </p>
     </section>
   );
