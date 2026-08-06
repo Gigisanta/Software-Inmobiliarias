@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
   Check,
   X,
@@ -38,11 +38,9 @@ import { cn } from "@/lib/utils";
 /* Datos de los planes                                                 */
 /* ------------------------------------------------------------------ */
 
-type Billing = "mensual" | "anual";
-
 const PRICES = {
-  basico: { mensual: 150, anualMes: 125, anualTotal: 1500 },
-  pro: { mensual: 250, anualMes: 208, anualTotal: 2500 },
+  basico: 150,
+  pro: 250,
 };
 
 const BASICO_INCLUYE = [
@@ -237,13 +235,11 @@ const GROUPS: FeatureGroup[] = [
 /* ------------------------------------------------------------------ */
 
 export default function PlanesPage() {
-  const [billing, setBilling] = useState<Billing>("mensual");
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
-      <Hero billing={billing} onBilling={setBilling} />
-      <PlanCards billing={billing} />
+      <Hero />
+      <PlanCards />
       <LiveComparison />
       <FeatureTable />
       <Closing />
@@ -284,7 +280,7 @@ function TopBar() {
 /* Hero + toggle                                                       */
 /* ------------------------------------------------------------------ */
 
-function Hero({ billing, onBilling }: { billing: Billing; onBilling: (b: Billing) => void }) {
+function Hero() {
   return (
     <section className="mx-auto max-w-3xl px-6 pb-10 pt-20 text-center">
       <FadeIn>
@@ -301,42 +297,8 @@ function Hero({ billing, onBilling }: { billing: Billing; onBilling: (b: Billing
           Los dos incluyen el CRM completo. La diferencia es quién responde y clasifica las
           consultas: vos a mano, o una IA entrenada que lo hace al instante y sin errores.
         </p>
-
-        <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-surface p-1">
-          <BillingBtn active={billing === "mensual"} onClick={() => onBilling("mensual")}>
-            Mensual
-          </BillingBtn>
-          <BillingBtn active={billing === "anual"} onClick={() => onBilling("anual")}>
-            Anual
-            <span className="ml-1.5 rounded-full bg-(--badge-sage-bg) px-1.5 py-0.5 text-[10px] font-semibold text-(--badge-sage-fg)">
-              2 meses gratis
-            </span>
-          </BillingBtn>
-        </div>
       </FadeIn>
     </section>
-  );
-}
-
-function BillingBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center rounded-full px-4 py-2 text-sm font-medium transition-colors duration-[180ms] ease-out",
-        active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -344,10 +306,7 @@ function BillingBtn({
 /* Tarjetas de precio                                                  */
 /* ------------------------------------------------------------------ */
 
-function PlanCards({ billing }: { billing: Billing }) {
-  const basico = billing === "mensual" ? PRICES.basico.mensual : PRICES.basico.anualMes;
-  const pro = billing === "mensual" ? PRICES.pro.mensual : PRICES.pro.anualMes;
-
+function PlanCards() {
   return (
     <section className="mx-auto max-w-4xl px-6 pb-20">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -364,7 +323,7 @@ function PlanCards({ billing }: { billing: Billing }) {
               </div>
             </div>
 
-            <PriceTag amount={basico} billing={billing} total={PRICES.basico.anualTotal} />
+            <PriceTag amount={PRICES.basico} />
 
             <p className="mt-2 text-sm text-muted">Todo el CRM para trabajar ordenado.</p>
 
@@ -419,7 +378,7 @@ function PlanCards({ billing }: { billing: Billing }) {
               </div>
             </div>
 
-            <PriceTag amount={pro} billing={billing} total={PRICES.pro.anualTotal} />
+            <PriceTag amount={PRICES.pro} />
 
             <p className="mt-2 text-sm text-muted">Todo el Básico, y la IA hace el trabajo pesado.</p>
 
@@ -458,36 +417,15 @@ function PlanCards({ billing }: { billing: Billing }) {
   );
 }
 
-function PriceTag({
-  amount,
-  billing,
-  total,
-}: {
-  amount: number;
-  billing: Billing;
-  total: number;
-}) {
+function PriceTag({ amount }: { amount: number }) {
   return (
     <div className="mt-6">
       <div className="flex items-baseline gap-1.5">
         <span className="text-sm font-medium text-muted-2">US$</span>
-        <AnimatePresence mode="popLayout">
-          <motion.span
-            key={amount}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="text-4xl font-semibold tabular-nums"
-          >
-            {amount}
-          </motion.span>
-        </AnimatePresence>
+        <span className="text-4xl font-semibold tabular-nums">{amount}</span>
         <span className="text-sm text-muted">/ mes</span>
       </div>
-      <p className="mt-1 h-4 text-xs text-muted-2">
-        {billing === "anual" ? `Facturado US$ ${total} al año` : "Facturación mensual"}
-      </p>
+      <p className="mt-1 h-4 text-xs text-muted-2">Facturación mensual</p>
     </div>
   );
 }
