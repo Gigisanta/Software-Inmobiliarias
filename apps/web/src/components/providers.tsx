@@ -7,7 +7,6 @@ import superjson from "superjson";
 import type { AppRouter } from "@reos/api";
 import { TRPCProvider } from "@/trpc/client";
 import { makeQueryClient } from "@/trpc/query-client";
-import { getDevRole } from "@/lib/dev-role";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(makeQueryClient);
@@ -17,10 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: "/api/trpc",
           transformer: superjson,
-          headers() {
-            // Header de rol para el stub de auth de desarrollo.
-            return { "x-dev-role": getDevRole() };
-          },
+          // La sesión viaja en la cookie httpOnly; no hace falta header extra.
         }),
       ],
     }),

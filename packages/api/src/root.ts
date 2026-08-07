@@ -3,12 +3,18 @@ import { healthRouter } from "./routers/health";
 import { pipelineRouter } from "./routers/pipeline";
 import { leadRouter } from "./routers/lead";
 import { dashboardRouter } from "./routers/dashboard";
+import { taskRouter } from "./routers/task";
+import { appointmentRouter } from "./routers/appointment";
+import { tenantRouter } from "./routers/tenant";
 
 export const appRouter = router({
   health: healthRouter,
   pipeline: pipelineRouter,
   lead: leadRouter,
   dashboard: dashboardRouter,
+  task: taskRouter,
+  appointment: appointmentRouter,
+  tenant: tenantRouter,
 });
 
 export type AppRouter = typeof appRouter;

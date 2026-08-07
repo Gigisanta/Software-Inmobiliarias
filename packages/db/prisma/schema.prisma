@@ -179,6 +179,8 @@ model Tenant {
   status    TenantStatus     @default(TRIAL)
   plan      SubscriptionPlan @default(STARTER)
   clerkOrgId String?         @unique
+  logoUrl    String?         // Logo de la inmobiliaria (data URL o URL), editable en Configuración.
+  brandColor String?         // Color de acento de la marca (hex), opcional.
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -210,6 +212,7 @@ model User {
   id          String    @id @default(cuid())
   tenantId    String
   clerkUserId String?   @unique
+  passwordHash String?  // Hash scrypt para login con credenciales propias (sin Clerk).
   email       String
   firstName   String?
   lastName    String?

@@ -6,8 +6,9 @@
 
 /* ============================================================
    Sistema de diseño RealEstate OS — CRM premium para inmobiliarias.
-   Luz, aire y calma: superficies blancas, bordes suaves, un solo
-   acento verde oliva. Inspirado en Attio / Linear / Stripe.
+   Paleta alineada a la marca de Antelo Negocios Inmobiliarios (Neuquén):
+   verde forest/olivo sobre blanco, con acento arena cálido. Superficies
+   blancas, bordes suaves, aire y calma. Inspirado en Attio / Linear / Stripe.
    Modo oscuro en grises cálidos (nunca azulados, nunca negro puro).
    ============================================================ */
 
@@ -26,11 +27,11 @@
   --fg-muted: #6b7280;
   --fg-faint: #9ca3af;
 
-  /* Acentos */
-  --accent: #6b8e7a; /* verde oliva */
-  --accent-strong: #5c7d6a;
-  --accent-soft: #eef2ef;
-  --sand: #c8b89a; /* arena */
+  /* Acentos — verde forest de la marca Antelo (isotipo "N" sobre blanco) */
+  --accent: #5c7d5c; /* verde forest/olivo Antelo */
+  --accent-strong: #4e6d4f;
+  --accent-soft: #edf2ed;
+  --sand: #ccb896; /* arena cálida (pie de sus flyers) */
   --sand-soft: #f5f0e6;
   --warning: #e8a74b;
   --danger: #d66a5e;
@@ -71,9 +72,9 @@
   --fg-muted: #a3a29b;
   --fg-faint: #75746e;
 
-  --accent: #7fa28c;
-  --accent-strong: #8fb29c;
-  --accent-soft: #1f2622;
+  --accent: #8aac8b;
+  --accent-strong: #9bbb9c;
+  --accent-soft: #1d231d;
   --sand: #cdbf9f;
   --sand-soft: #26231c;
   --warning: #e8a74b;

@@ -13,7 +13,7 @@ export const healthRouter = router({
       }),
       ctx.prisma.tenant.findUnique({
         where: { id: ctx.principal.tenantId },
-        select: { id: true, name: true, slug: true, plan: true },
+        select: { id: true, name: true, slug: true, plan: true, logoUrl: true, brandColor: true },
       }),
     ]);
     return { principal: ctx.principal, user, tenant };

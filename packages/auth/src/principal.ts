@@ -11,5 +11,5 @@ export interface AuthPrincipal {
   email: string;
   branchId: string | null;
   /** Fuente de la identidad, para debugging. */
-  source: "clerk" | "dev-stub";
+  source: "clerk" | "dev-stub" | "session";
 }

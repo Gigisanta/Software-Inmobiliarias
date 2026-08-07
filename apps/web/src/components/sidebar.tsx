@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   House,
   Columns3,
@@ -10,9 +11,11 @@ import {
   CalendarDays,
   MessageSquareText,
   ListChecks,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTRPC } from "@/trpc/client";
 import { TenantLogo } from "@/components/tenant-logo";
 
 interface NavItem {
@@ -29,7 +32,15 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/conversaciones", label: "Conversaciones", icon: MessageSquareText },
   { href: "/tareas", label: "Tareas", icon: ListChecks },
+  { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
+
+const PLAN_LABEL: Record<string, string> = {
+  STARTER: "Plan Básico",
+  PRO: "Plan Pro",
+  BUSINESS: "Plan Business",
+  ENTERPRISE: "Plan Enterprise",
+};
 
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
@@ -39,6 +50,10 @@ export function isActive(pathname: string, href: string): boolean {
 /** Sidebar fija: angosta, blanca, con indicador de sección sereno. */
 export function Sidebar() {
   const pathname = usePathname();
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.health.me.queryOptions());
+  const tenant = data?.tenant;
+  const planLabel = tenant?.plan ? (PLAN_LABEL[tenant.plan] ?? "Plan Básico") : "";
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
@@ -79,10 +94,14 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border px-5 py-4">
-        <p className="text-[11px] leading-relaxed text-muted-2">
-          RealEstate OS
-          <span className="mx-1.5">·</span>
-          Plan Pro
+        <p className="truncate text-[11px] leading-relaxed text-muted-2">
+          {tenant?.name ?? "RealEstate OS"}
+          {planLabel ? (
+            <>
+              <span className="mx-1.5">·</span>
+              {planLabel}
+            </>
+          ) : null}
         </p>
       </div>
     </aside>

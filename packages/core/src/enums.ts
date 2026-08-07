@@ -99,6 +99,14 @@ export const InterestLevel = {
 } as const;
 export type InterestLevel = (typeof InterestLevel)[keyof typeof InterestLevel];
 
+/** Banda de prioridad del lead (resultado del Lead Score o clasificación manual). */
+export const ScoreBand = {
+  FRIO: "FRIO",
+  TIBIO: "TIBIO",
+  CALIENTE: "CALIENTE",
+} as const;
+export type ScoreBand = (typeof ScoreBand)[keyof typeof ScoreBand];
+
 export const LeadChannel = {
   WHATSAPP: "WHATSAPP",
   LANDING: "LANDING",

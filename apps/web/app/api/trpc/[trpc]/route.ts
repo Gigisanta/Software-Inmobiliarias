@@ -1,6 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter, createTRPCContext } from "@reos/api";
-import { resolveClerkPrincipal } from "@/lib/auth";
+import { resolveSessionPrincipal } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ const handler = (req: Request) =>
     createContext: async () =>
       createTRPCContext({
         headers: req.headers,
-        principal: await resolveClerkPrincipal(req),
+        principal: await resolveSessionPrincipal(req),
       }),
     onError({ error, path }) {
       if (process.env.NODE_ENV === "development") {

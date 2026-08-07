@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
-import { PipelineStageKey } from "@reos/core";
+import { PipelineStageKey, ScoreBand, OperationType as OperationTypeEnum } from "@reos/core";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, stageVariant, bandVariant, BAND_LABEL } from "@/components/ui/badge";
@@ -37,8 +37,13 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { Modal } from "@/components/ui/modal";
+import { Input, Textarea, Field, Select } from "@/components/ui/input";
 import { FadeIn } from "@/components/ui/motion";
+import { TaskModal } from "@/components/task-modal";
+import { ApptModal } from "@/components/appt-modal";
 import { cn, formatMoney, timeAgo, initials } from "@/lib/utils";
+import { Pencil, Plus, Loader2, Sparkles } from "lucide-react";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type LeadData = RouterOutputs["lead"]["byId"];
@@ -76,7 +81,7 @@ const PROPERTY_LABEL: Record<string, string> = {
   DEPARTAMENTO: "Departamento",
   CASA: "Casa",
   PH: "PH",
-  LOTE: "Lote",
+  TERRENO: "Terreno",
   LOCAL: "Local",
   OFICINA: "Oficina",
   COCHERA: "Cochera",
@@ -188,8 +193,18 @@ export default function LeadDetailPage() {
   const lead = useQuery(trpc.lead.byId.queryOptions({ id }));
   const stages = useQuery(trpc.pipeline.list.queryOptions());
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [apptOpen, setApptOpen] = useState(false);
+
   const changeStage = useMutation(
     trpc.lead.changeStage.mutationOptions({
+      onSuccess: () => qc.invalidateQueries(),
+    }),
+  );
+
+  const classify = useMutation(
+    trpc.lead.update.mutationOptions({
       onSuccess: () => qc.invalidateQueries(),
     }),
   );
@@ -243,6 +258,10 @@ export default function LeadDetailPage() {
                   {l.currentStage && (
                     <Badge variant={stageVariant(l.currentStage.key)}>{l.currentStage.name}</Badge>
                   )}
+                  <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar ficha
+                  </Button>
                 </div>
               </div>
             </div>
@@ -282,16 +301,26 @@ export default function LeadDetailPage() {
 
         <div className="flex flex-col gap-6">
           <FadeIn delay={0.06}>
-            <ScoreCard score={l.score} band={l.scoreBand} factors={factors} />
+            <ScoreCard
+              score={l.score}
+              band={l.scoreBand}
+              factors={factors}
+              onClassify={(band) => classify.mutate({ id, patch: { scoreBand: band } })}
+              classifying={classify.isPending}
+            />
           </FadeIn>
           <FadeIn delay={0.1}>
-            <TasksCard tasks={l.tasks} />
+            <TasksCard tasks={l.tasks} onAdd={() => setTaskOpen(true)} />
           </FadeIn>
           <FadeIn delay={0.14}>
-            <AppointmentsCard appointments={l.appointments} />
+            <AppointmentsCard appointments={l.appointments} onAdd={() => setApptOpen(true)} />
           </FadeIn>
         </div>
       </div>
+
+      <EditLeadModal lead={l} open={editOpen} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); qc.invalidateQueries(); }} />
+      <TaskModal open={taskOpen} onClose={() => setTaskOpen(false)} onCreated={() => { setTaskOpen(false); qc.invalidateQueries(); }} presetLeadId={id} />
+      <ApptModal open={apptOpen} editing={null} onClose={() => setApptOpen(false)} onSaved={() => { setApptOpen(false); qc.invalidateQueries(); }} presetLeadId={id} />
     </div>
   );
 }
@@ -620,14 +649,24 @@ function TimelineCard({ history }: { history: StageHistoryEntry[] }) {
   );
 }
 
+const CLASSIFY_OPTIONS: { band: ScoreBand; label: string }[] = [
+  { band: ScoreBand.CALIENTE, label: "Caliente" },
+  { band: ScoreBand.TIBIO, label: "Tibio" },
+  { band: ScoreBand.FRIO, label: "Frío" },
+];
+
 function ScoreCard({
   score,
   band,
   factors,
+  onClassify,
+  classifying,
 }: {
   score: number;
   band?: string | null;
   factors: ScoreFactor[] | null;
+  onClassify: (band: ScoreBand) => void;
+  classifying: boolean;
 }) {
   return (
     <Card>
@@ -641,6 +680,35 @@ function ScoreCard({
           </span>
           <span className="text-sm text-muted-2">/ 100</span>
           {band && <Badge variant={bandVariant(band)}>{BAND_LABEL[band]}</Badge>}
+        </div>
+
+        {/* Clasificación manual (plan Básico). */}
+        <div className="mt-5 border-t border-border pt-5">
+          <p className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-muted">
+            <Sparkles className="h-3.5 w-3.5" />
+            Clasificar manualmente
+          </p>
+          <div className="flex items-center gap-1.5">
+            {CLASSIFY_OPTIONS.map((opt) => {
+              const active = band === opt.band;
+              return (
+                <button
+                  key={opt.band}
+                  type="button"
+                  disabled={classifying}
+                  onClick={() => onClassify(opt.band)}
+                  className={cn(
+                    "flex-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors duration-[180ms] disabled:opacity-50",
+                    active
+                      ? "border-primary/40 bg-primary-soft text-primary"
+                      : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="mt-5 border-t border-border pt-5">
@@ -683,14 +751,20 @@ function priorityVariant(priority: string): "amber" | "sand" | "neutral" {
   return "neutral";
 }
 
-function TasksCard({ tasks }: { tasks: Task[] }) {
+function TasksCard({ tasks, onAdd }: { tasks: Task[]; onAdd: () => void }) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center gap-2.5">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 text-muted">
-          <ListChecks className="h-4 w-4" strokeWidth={1.75} />
-        </span>
-        <CardTitle>Tareas</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 text-muted">
+            <ListChecks className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <CardTitle>Tareas</CardTitle>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onAdd}>
+          <Plus className="h-3.5 w-3.5" />
+          Nueva
+        </Button>
       </CardHeader>
       <CardContent>
         {tasks.length === 0 ? (
@@ -723,14 +797,20 @@ function TasksCard({ tasks }: { tasks: Task[] }) {
   );
 }
 
-function AppointmentsCard({ appointments }: { appointments: Appointment[] }) {
+function AppointmentsCard({ appointments, onAdd }: { appointments: Appointment[]; onAdd: () => void }) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center gap-2.5">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 text-muted">
-          <CalendarDays className="h-4 w-4" strokeWidth={1.75} />
-        </span>
-        <CardTitle>Visitas y reuniones</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 text-muted">
+            <CalendarDays className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <CardTitle>Visitas y reuniones</CardTitle>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onAdd}>
+          <Plus className="h-3.5 w-3.5" />
+          Agendar
+        </Button>
       </CardHeader>
       <CardContent>
         {appointments.length === 0 ? (
@@ -764,6 +844,148 @@ function AppointmentsCard({ appointments }: { appointments: Appointment[] }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Edición de ficha                                                    */
+/* ------------------------------------------------------------------ */
+
+function EditLeadModal({
+  lead,
+  open,
+  onClose,
+  onSaved,
+}: {
+  lead: LeadData;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const trpc = useTRPC();
+  const [firstName, setFirstName] = useState(lead.firstName ?? "");
+  const [lastName, setLastName] = useState(lead.lastName ?? "");
+  const [phone, setPhone] = useState(lead.phone ?? "");
+  const [email, setEmail] = useState(lead.email ?? "");
+  const [operationType, setOperationType] = useState<string>(lead.operationType ?? "");
+  const [budgetMin, setBudgetMin] = useState(lead.budgetMin != null ? String(lead.budgetMin) : "");
+  const [budgetMax, setBudgetMax] = useState(lead.budgetMax != null ? String(lead.budgetMax) : "");
+  const [notes, setNotes] = useState(lead.notes ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  // Re-sincroniza al abrir con otro lead.
+  const [lastId, setLastId] = useState(lead.id);
+  if (lastId !== lead.id) {
+    setLastId(lead.id);
+    setFirstName(lead.firstName ?? "");
+    setLastName(lead.lastName ?? "");
+    setPhone(lead.phone ?? "");
+    setEmail(lead.email ?? "");
+    setOperationType(lead.operationType ?? "");
+    setBudgetMin(lead.budgetMin != null ? String(lead.budgetMin) : "");
+    setBudgetMax(lead.budgetMax != null ? String(lead.budgetMax) : "");
+    setNotes(lead.notes ?? "");
+  }
+
+  const update = useMutation(
+    trpc.lead.update.mutationOptions({
+      onSuccess: () => onSaved(),
+      onError: (err: unknown) =>
+        setError(err instanceof Error ? err.message : "No pudimos guardar la ficha."),
+    }),
+  );
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!firstName.trim()) return setError("El nombre es obligatorio.");
+    const min = budgetMin.trim() === "" ? null : Number(budgetMin);
+    const max = budgetMax.trim() === "" ? null : Number(budgetMax);
+    if (min != null && Number.isNaN(min)) return setError("El presupuesto mínimo debe ser un número.");
+    if (max != null && Number.isNaN(max)) return setError("El presupuesto máximo debe ser un número.");
+
+    update.mutate({
+      id: lead.id,
+      patch: {
+        firstName: firstName.trim(),
+        lastName: lastName.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        operationType: operationType ? (operationType as OperationTypeEnum) : undefined,
+        budgetMin: min,
+        budgetMax: max,
+        notes: notes.trim() || null,
+      },
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar ficha" description="Actualizá los datos del lead.">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Field label="Nombre" required>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
+          </Field>
+          <Field label="Apellido">
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          </Field>
+          <Field label="Teléfono">
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
+          </Field>
+          <Field label="Email">
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" />
+          </Field>
+        </div>
+
+        <Field label="Operación">
+          <Select
+            value={operationType}
+            onValueChange={setOperationType}
+            placeholder="Sin definir"
+            options={[
+              { value: OperationTypeEnum.COMPRA, label: "Compra" },
+              { value: OperationTypeEnum.VENTA, label: "Venta" },
+              { value: OperationTypeEnum.ALQUILER, label: "Alquiler" },
+              { value: OperationTypeEnum.ALQUILER_TEMPORAL, label: "Alquiler temporal" },
+            ]}
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-5">
+          <Field label="Presupuesto mín.">
+            <Input value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} inputMode="numeric" />
+          </Field>
+          <Field label="Presupuesto máx.">
+            <Input value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} inputMode="numeric" />
+          </Field>
+        </div>
+
+        <Field label="Notas">
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+        </Field>
+
+        {error ? (
+          <p className="rounded-xl bg-(--badge-danger-bg) px-3.5 py-2.5 text-xs text-(--badge-danger-fg)">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={update.isPending}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={update.isPending}>
+            {update.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Guardando…
+              </>
+            ) : (
+              "Guardar cambios"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

@@ -9,6 +9,8 @@ import {
   FinancingType,
   PipelineStageKey,
   LossReason,
+  ScoreBand,
+  InterestLevel,
 } from "@reos/core";
 import * as leadService from "../services/lead-service";
 
@@ -62,6 +64,8 @@ const updateInput = z.object({
     hasPets: z.boolean().nullable().optional(),
     financing: z.nativeEnum(FinancingType).optional(),
     notes: z.string().nullable().optional(),
+    scoreBand: z.nativeEnum(ScoreBand).nullable().optional(),
+    interestLevel: z.nativeEnum(InterestLevel).nullable().optional(),
   }),
 });
 

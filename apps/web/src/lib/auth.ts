@@ -1,14 +1,38 @@
 import type { AuthPrincipal } from "@reos/auth";
+import { verifySessionToken, SESSION_COOKIE } from "@reos/auth";
+import type { UserRole } from "@reos/core";
+import { prisma } from "@reos/db";
+
+/** Lee el valor de una cookie desde el header `Cookie`. */
+function readCookie(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
 
 /**
- * Resuelve el principal desde Clerk.
+ * Resuelve el principal autenticado desde la cookie de sesión firmada.
  *
- * En este incremento devuelve `null` (el contexto cae al stub de desarrollo).
- * El cableado completo de Clerk — middleware, sincronización de usuarios/organizaciones
- * por webhook y mapeo clerkUserId/clerkOrgId → User/Tenant — es la próxima tarea de auth.
+ * El token solo contiene el userId; el tenant y el rol se recargan de la base
+ * (fuente de verdad). Devuelve null si no hay sesión válida o el usuario está inactivo.
  */
-export async function resolveClerkPrincipal(_req: Request): Promise<AuthPrincipal | null> {
-  if (!process.env.CLERK_SECRET_KEY) return null;
-  // TODO(auth): const { userId, orgId } = await auth();  → mapear a User/Tenant.
-  return null;
+export async function resolveSessionPrincipal(req: Request): Promise<AuthPrincipal | null> {
+  const token = readCookie(req.headers.get("cookie"), SESSION_COOKIE);
+  const payload = verifySessionToken(token);
+  if (!payload) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: payload.uid } });
+  if (!user || !user.isActive) return null;
+
+  return {
+    userId: user.id,
+    tenantId: user.tenantId,
+    role: user.role as UserRole,
+    email: user.email,
+    branchId: user.branchId,
+    source: "session",
+  };
 }

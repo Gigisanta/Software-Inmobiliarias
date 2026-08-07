@@ -4,6 +4,7 @@
  *
  * Ejecutar: pnpm db:seed
  */
+import { randomBytes, scryptSync } from "node:crypto";
 import { prisma, Prisma } from "../src/index";
 import {
   DEFAULT_PIPELINE,
@@ -18,6 +19,16 @@ import {
 } from "@reos/core";
 
 const TENANT_SLUG = "inmobiliaria-demo";
+
+/**
+ * Hash scrypt idéntico al de @reos/auth (`scrypt$salt$hash`). Se replica acá para
+ * que el seed no dependa del paquete de auth en tiempo de ejecución.
+ */
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(password, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
 
 async function main() {
   console.log("🌱 Sembrando datos de RealEstate OS…");
@@ -48,9 +59,9 @@ async function main() {
 
   // 3) Usuarios
   const [owner, manager, advisor] = await Promise.all([
-    upsertUser(tenant.id, branch.id, "dueno@demo.com", "Roberto", "Álvarez", UserRole.OWNER),
-    upsertUser(tenant.id, branch.id, "gerente@demo.com", "Carla", "Méndez", UserRole.MANAGER),
-    upsertUser(tenant.id, branch.id, "asesor@demo.com", "Nicolás", "Ferrari", UserRole.ADVISOR),
+    upsertUser(tenant.id, branch.id, "dueno@demo.com", "Roberto", "Álvarez", UserRole.OWNER, "demo1234"),
+    upsertUser(tenant.id, branch.id, "gerente@demo.com", "Carla", "Méndez", UserRole.MANAGER, "demo1234"),
+    upsertUser(tenant.id, branch.id, "asesor@demo.com", "Nicolás", "Ferrari", UserRole.ADVISOR, "demo1234"),
   ]);
 
   // 4) Pipeline por defecto
@@ -402,6 +413,9 @@ async function main() {
     ],
   });
 
+  // 9) Workspace real de prueba para el cliente (Ceci).
+  await seedClientWorkspace();
+
   const counts = {
     usuarios: await prisma.user.count({ where: { tenantId: tenant.id } }),
     etapas: await prisma.pipelineStage.count({ where: { tenantId: tenant.id } }),
@@ -412,8 +426,235 @@ async function main() {
   };
 
   console.log("✅ Seed completo:", counts);
-  console.log(`   Tenant: ${tenant.name} (${tenant.slug}) · id=${tenant.id}`);
-  console.log(`   Usuarios: dueno@demo.com / gerente@demo.com / asesor@demo.com`);
+  console.log(`   Tenant demo: ${tenant.name} (${tenant.slug}) · id=${tenant.id}`);
+  console.log(`   Login demo: dueno@demo.com / gerente@demo.com / asesor@demo.com  (contraseña: demo1234)`);
+}
+
+/**
+ * Crea el espacio de trabajo real para el cliente que va a probar el plan Básico.
+ * Tenant propio, login con credenciales, pipeline y unos pocos leads de ejemplo
+ * (que puede borrar y reemplazar por los suyos).
+ */
+async function seedClientWorkspace() {
+  const CLIENT_SLUG = "inmobiliaria-ceci";
+  const CLIENT_EMAIL = "ceci@crm.com";
+  const CLIENT_PASSWORD = "ceci1234";
+  const CLIENT_NAME = "Antelo Negocios Inmobiliarios";
+  const CLIENT_BRAND = "#5C7D5C"; // verde forest de la marca Antelo
+
+  const clientTenant = await prisma.tenant.upsert({
+    where: { slug: CLIENT_SLUG },
+    update: { name: CLIENT_NAME, brandColor: CLIENT_BRAND, status: "ACTIVE", plan: "STARTER" },
+    create: {
+      name: CLIENT_NAME,
+      slug: CLIENT_SLUG,
+      status: "ACTIVE",
+      plan: "STARTER",
+      brandColor: CLIENT_BRAND,
+    },
+  });
+
+  const clientBranch = await prisma.branch.upsert({
+    where: { id: `${clientTenant.id}-central` },
+    update: {},
+    create: {
+      id: `${clientTenant.id}-central`,
+      tenantId: clientTenant.id,
+      name: "Oficina Neuquén",
+    },
+  });
+
+  const ceci = await upsertUser(
+    clientTenant.id,
+    clientBranch.id,
+    CLIENT_EMAIL,
+    "Ceci",
+    "Antelo",
+    UserRole.OWNER,
+    CLIENT_PASSWORD,
+  );
+
+  // Pipeline por defecto.
+  const stages = new Map<PipelineStageKey, string>();
+  for (const def of DEFAULT_PIPELINE) {
+    const stage = await prisma.pipelineStage.upsert({
+      where: { tenantId_key: { tenantId: clientTenant.id, key: def.key } },
+      update: { name: def.name, order: def.order, probability: def.defaultProbability, isWon: def.isWon, isLost: def.isLost },
+      create: {
+        tenantId: clientTenant.id,
+        key: def.key,
+        name: def.name,
+        order: def.order,
+        probability: def.defaultProbability,
+        isWon: def.isWon,
+        isLost: def.isLost,
+      },
+    });
+    stages.set(def.key, stage.id);
+  }
+
+  // Propiedad + leads de ejemplo (idempotente: limpio los previos).
+  await prisma.appointment.deleteMany({ where: { tenantId: clientTenant.id } });
+  await prisma.task.deleteMany({ where: { tenantId: clientTenant.id } });
+  await prisma.lead.deleteMany({ where: { tenantId: clientTenant.id } });
+  await prisma.property.deleteMany({ where: { tenantId: clientTenant.id } });
+
+  const prop = await prisma.property.create({
+    data: {
+      tenantId: clientTenant.id,
+      title: "Departamento 2 amb. apto profesional · Centro de Neuquén",
+      operationType: OperationType.VENTA,
+      propertyType: PropertyType.DEPARTAMENTO,
+      status: "PUBLICADA",
+      price: new Prisma.Decimal(89000),
+      currency: "USD",
+      neighborhood: "Área Centro Este",
+      city: "Neuquén",
+      rooms: 2,
+      bedrooms: 1,
+      bathrooms: 1,
+      areaM2: 52,
+    },
+  });
+
+  const propLote = await prisma.property.create({
+    data: {
+      tenantId: clientTenant.id,
+      title: "Lote 360 m² escriturado · Primaterra",
+      operationType: OperationType.VENTA,
+      propertyType: PropertyType.TERRENO,
+      status: "PUBLICADA",
+      price: new Prisma.Decimal(32000),
+      currency: "USD",
+      neighborhood: "Primaterra",
+      city: "Neuquén",
+      areaM2: 360,
+    },
+  });
+
+  const sofia = await createLead({
+    tenantId: clientTenant.id,
+    stageId: stages.get(PipelineStageKey.INTERESADO)!,
+    stageKey: PipelineStageKey.INTERESADO,
+    assignedToId: ceci.id,
+    branchId: clientBranch.id,
+    firstName: "Sofía",
+    lastName: "Herrera",
+    phone: "+5492991122334",
+    channel: LeadChannel.WHATSAPP,
+    operationType: OperationType.COMPRA,
+    budgetMin: 80000,
+    budgetMax: 95000,
+    neighborhoods: ["Área Centro Este", "Área Centro Sur"],
+    propertyType: PropertyType.DEPARTAMENTO,
+    financing: FinancingType.CREDITO_HIPOTECARIO,
+    propertyIds: [prop.id],
+    scoreInput: {
+      daysSinceFirstContact: 3,
+      daysSinceLastActivity: 0,
+      conversationCount: 5,
+      propertiesViewed: 2,
+      visitsCompleted: 0,
+      hasBudget: true,
+      hasDocuments: false,
+      stageProbability: 25,
+      avgResponseMinutes: 18,
+    },
+  });
+
+  await createLead({
+    tenantId: clientTenant.id,
+    stageId: stages.get(PipelineStageKey.NUEVO_LEAD)!,
+    stageKey: PipelineStageKey.NUEVO_LEAD,
+    assignedToId: null,
+    branchId: clientBranch.id,
+    firstName: "Martín",
+    lastName: "Quiroga",
+    phone: "+5492994455667",
+    channel: LeadChannel.PORTAL,
+    operationType: OperationType.ALQUILER,
+    budgetMin: 250,
+    budgetMax: 400,
+    neighborhoods: ["Confluencia", "Barrio Nordeste"],
+    propertyType: PropertyType.DEPARTAMENTO,
+    financing: FinancingType.CONTADO,
+    propertyIds: [],
+    scoreInput: {
+      daysSinceFirstContact: 0,
+      daysSinceLastActivity: 0,
+      conversationCount: 1,
+      propertiesViewed: 0,
+      visitsCompleted: 0,
+      hasBudget: true,
+      hasDocuments: false,
+      stageProbability: 5,
+      avgResponseMinutes: null,
+    },
+  });
+
+  const lucas = await createLead({
+    tenantId: clientTenant.id,
+    stageId: stages.get(PipelineStageKey.NEGOCIACION)!,
+    stageKey: PipelineStageKey.NEGOCIACION,
+    assignedToId: ceci.id,
+    branchId: clientBranch.id,
+    firstName: "Lucas",
+    lastName: "Bravo",
+    phone: "+5492997788990",
+    channel: LeadChannel.REFERIDO,
+    operationType: OperationType.COMPRA,
+    budgetMin: 28000,
+    budgetMax: 35000,
+    neighborhoods: ["Primaterra"],
+    propertyType: PropertyType.TERRENO,
+    financing: FinancingType.CONTADO,
+    propertyIds: [propLote.id],
+    daysWithoutActivity: 4,
+    scoreInput: {
+      daysSinceFirstContact: 15,
+      daysSinceLastActivity: 4,
+      conversationCount: 9,
+      propertiesViewed: 3,
+      visitsCompleted: 1,
+      hasBudget: true,
+      hasDocuments: true,
+      stageProbability: 60,
+      avgResponseMinutes: 14,
+    },
+  });
+
+  const soon = new Date();
+  soon.setHours(soon.getHours() + 3, 0, 0, 0);
+
+  await prisma.appointment.create({
+    data: {
+      tenantId: clientTenant.id,
+      leadId: sofia.id,
+      propertyId: prop.id,
+      type: "VISITA",
+      status: "AGENDADA",
+      scheduledAt: soon,
+      durationMinutes: 45,
+      assignedToId: ceci.id,
+      notes: "Primera visita al depto del centro de Neuquén.",
+    },
+  });
+
+  await prisma.task.create({
+    data: {
+      tenantId: clientTenant.id,
+      leadId: lucas.id,
+      title: "Llamar a Lucas Bravo para cerrar la contraoferta",
+      status: "PENDIENTE",
+      priority: "ALTA",
+      dueAt: new Date(),
+      assignedToId: ceci.id,
+      createdById: ceci.id,
+    },
+  });
+
+  console.log(`   Tenant cliente: ${clientTenant.name} (${clientTenant.slug}) · marca ${CLIENT_BRAND}`);
+  console.log(`   Login cliente: ${CLIENT_EMAIL}  (contraseña: ${CLIENT_PASSWORD})`);
 }
 
 function upsertUser(
@@ -423,11 +664,13 @@ function upsertUser(
   firstName: string,
   lastName: string,
   role: UserRole,
+  password?: string,
 ) {
+  const passwordHash = password ? hashPassword(password) : undefined;
   return prisma.user.upsert({
     where: { tenantId_email: { tenantId, email } },
-    update: { firstName, lastName, role, branchId },
-    create: { tenantId, branchId, email, firstName, lastName, role },
+    update: { firstName, lastName, role, branchId, ...(passwordHash ? { passwordHash } : {}) },
+    create: { tenantId, branchId, email, firstName, lastName, role, passwordHash },
   });
 }
 

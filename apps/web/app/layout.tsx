@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "RealEstate OS",
-  description: "El sistema operativo para inmobiliarias",
+  title: "Antelo Negocios Inmobiliarios · CRM",
+  description: "CRM de Antelo Negocios Inmobiliarios — Neuquén. Leads, visitas y operaciones en un solo lugar.",
 };
 
 /** Aplica el tema guardado antes del primer paint (evita el flash de tema). */

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Logo de la inmobiliaria (tenant): monograma sobrio + nombre. */
+/** Logo de la inmobiliaria (tenant): imagen propia si la cargó, o monograma sobrio. */
 export function TenantLogo() {
   const trpc = useTRPC();
   const { data, isLoading } = useQuery(trpc.health.me.queryOptions());
@@ -31,9 +31,21 @@ export function TenantLogo() {
 
   return (
     <Link href="/" className="flex min-w-0 items-center gap-2.5">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
-        {monogram}
-      </div>
+      {tenant?.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={tenant.logoUrl}
+          alt={name}
+          className="h-8 w-8 shrink-0 rounded-lg object-contain"
+        />
+      ) : (
+        <div
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-semibold text-primary-foreground"
+          style={{ backgroundColor: tenant?.brandColor ?? "var(--color-primary)" }}
+        >
+          {monogram}
+        </div>
+      )}
       <span className="truncate text-sm font-semibold text-foreground">{name}</span>
     </Link>
   );

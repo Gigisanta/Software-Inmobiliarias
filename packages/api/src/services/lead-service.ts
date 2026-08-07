@@ -309,6 +309,9 @@ export interface UpdateLeadInput {
   hasPets?: boolean | null;
   financing?: import("@reos/core").FinancingType;
   notes?: string | null;
+  /** Clasificación manual (plan Básico): prioridad e interés fijados a mano. */
+  scoreBand?: import("@reos/core").ScoreBand | null;
+  interestLevel?: import("@reos/core").InterestLevel | null;
 }
 
 export async function updateLead(ctx: ServiceCtx, id: string, patch: UpdateLeadInput) {
@@ -337,6 +340,8 @@ export async function updateLead(ctx: ServiceCtx, id: string, patch: UpdateLeadI
     ...(patch.hasPets !== undefined ? { hasPets: patch.hasPets } : {}),
     ...(patch.financing !== undefined ? { financing: patch.financing } : {}),
     ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    ...(patch.scoreBand !== undefined ? { scoreBand: patch.scoreBand } : {}),
+    ...(patch.interestLevel !== undefined ? { interestLevel: patch.interestLevel } : {}),
     lastActivityAt: new Date(),
   };
 
