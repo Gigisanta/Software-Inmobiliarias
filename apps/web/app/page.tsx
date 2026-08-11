@@ -39,7 +39,11 @@ export default function HoyPage() {
 
   const s = summary.data;
   const t = today.data;
-  const loading = summary.isLoading || today.isLoading;
+  // Loading desacoplado: cada tarjeta aparece apenas llega SU dato, sin esperar
+  // a la otra query. El resumen combina ambas, así que espera las dos.
+  const summaryLoading = summary.isLoading;
+  const todayLoading = today.isLoading;
+  const loading = summaryLoading || todayLoading;
 
   const dateLabel = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
@@ -62,23 +66,23 @@ export default function HoyPage() {
       {/* Tarjetas de trabajo: qué hacer ahora */}
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <FadeIn delay={0.04}>
-          <VisitsCard today={t} loading={loading} />
+          <VisitsCard today={t} loading={todayLoading} />
         </FadeIn>
         <FadeIn delay={0.08}>
-          <FollowUpsCard today={t} loading={loading} />
+          <FollowUpsCard today={t} loading={todayLoading} />
         </FadeIn>
         <FadeIn delay={0.12}>
-          <OperationsCard today={t} loading={loading} />
+          <OperationsCard today={t} loading={todayLoading} />
         </FadeIn>
       </div>
 
       {/* Embudo + equipo */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <FadeIn delay={0.16} className="lg:col-span-2">
-          <FunnelCard summary={s} loading={loading} />
+          <FunnelCard summary={s} loading={summaryLoading} />
         </FadeIn>
         <FadeIn delay={0.2}>
-          <TeamCard today={t} loading={loading} />
+          <TeamCard today={t} loading={todayLoading} />
         </FadeIn>
       </div>
     </div>

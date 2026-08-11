@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Building2, ImagePlus, Loader2, Check, Plus, UserPlus, Shield, Sparkles } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
+import { useInvalidate } from "@/trpc/invalidate";
 import { UserRole } from "@reos/core";
 
 import { PageHeader } from "@/components/page-header";
@@ -65,7 +66,7 @@ export default function ConfiguracionPage() {
 
 function BrandingCard() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const settings = useQuery(trpc.tenant.settings.queryOptions());
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -88,7 +89,8 @@ function BrandingCard() {
       onSuccess: () => {
         setSaved(true);
         setError(null);
-        qc.invalidateQueries();
+        // La marca (logo/nombre/color) se muestra en el sidebar (health.me).
+        invalidate(["tenant", "health"]);
         setTimeout(() => setSaved(false), 2000);
       },
       onError: (err: unknown) => {
@@ -224,13 +226,13 @@ function BrandingCard() {
 
 function PlanCard() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const me = useQuery(trpc.health.me.queryOptions());
   const plan = me.data?.tenant?.plan ?? "STARTER";
   const isPro = plan !== "STARTER";
 
   const setPlan = useMutation(
-    trpc.tenant.setPlan.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+    trpc.tenant.setPlan.mutationOptions({ onSuccess: () => invalidate(["tenant", "health"]) }),
   );
 
   return (
@@ -292,14 +294,14 @@ function PlanCard() {
 
 function TeamCard() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const users = useQuery(trpc.tenant.listUsers.queryOptions());
   const me = useQuery(trpc.health.me.queryOptions());
   const [modalOpen, setModalOpen] = useState(false);
 
   const setActive = useMutation(
     trpc.tenant.setUserActive.mutationOptions({
-      onSuccess: () => qc.invalidateQueries(),
+      onSuccess: () => invalidate(["tenant"]),
     }),
   );
 
@@ -365,7 +367,7 @@ function TeamCard() {
         onClose={() => setModalOpen(false)}
         onCreated={() => {
           setModalOpen(false);
-          qc.invalidateQueries();
+          invalidate(["tenant"]);
         }}
       />
     </Card>

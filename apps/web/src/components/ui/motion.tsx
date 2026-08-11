@@ -28,11 +28,13 @@ export function FadeIn({
   delay?: number;
   className?: string;
 }) {
+  // Se acota el delay para que el escalonado entre secciones se sienta inmediato
+  // (antes llegaba a 0.2s y demoraba la aparición de las últimas tarjetas al navegar).
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut", delay }}
+      transition={{ duration: 0.22, ease: "easeOut", delay: Math.min(delay, 0.06) }}
       className={className}
     >
       {children}

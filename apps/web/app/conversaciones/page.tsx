@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@reos/api";
 import {
@@ -32,6 +32,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input, Textarea, Field } from "@/components/ui/input";
 import { FadeIn } from "@/components/ui/motion";
 import { ProUpsell } from "@/components/pro-upsell";
+import { useInvalidate } from "@/trpc/invalidate";
 import { cn, timeAgo, initials } from "@/lib/utils";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -79,7 +80,7 @@ export default function ConversacionesPage() {
 
 function Inbox() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [simOpen, setSimOpen] = useState(false);
 
@@ -142,7 +143,8 @@ function Inbox() {
         onDone={(convId) => {
           setSimOpen(false);
           setSelectedId(convId);
-          qc.invalidateQueries();
+          // Un entrante simulado crea lead, lo clasifica y puede mover el pipeline.
+          invalidate(["conversation", "lead", "dashboard", "pipeline"]);
         }}
       />
     </div>
@@ -226,25 +228,25 @@ function ConversationList({
 
 function Thread({ conversationId }: { conversationId: string }) {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [draft, setDraft] = useState("");
 
   const conv = useQuery(trpc.conversation.byId.queryOptions({ id: conversationId }));
 
-  const invalidate = () => qc.invalidateQueries();
+  const refreshConversations = () => invalidate(["conversation"]);
 
   const send = useMutation(
     trpc.conversation.send.mutationOptions({
       onSuccess: () => {
         setDraft("");
-        invalidate();
+        refreshConversations();
       },
     }),
   );
-  const replyAi = useMutation(trpc.conversation.replyWithAi.mutationOptions({ onSuccess: invalidate }));
+  const replyAi = useMutation(trpc.conversation.replyWithAi.mutationOptions({ onSuccess: refreshConversations }));
   const suggest = useMutation(trpc.ai.suggestReply.mutationOptions());
-  const setAi = useMutation(trpc.conversation.setAiEnabled.mutationOptions({ onSuccess: invalidate }));
-  const setStatus = useMutation(trpc.conversation.setStatus.mutationOptions({ onSuccess: invalidate }));
+  const setAi = useMutation(trpc.conversation.setAiEnabled.mutationOptions({ onSuccess: refreshConversations }));
+  const setStatus = useMutation(trpc.conversation.setStatus.mutationOptions({ onSuccess: refreshConversations }));
 
   if (conv.isLoading || !conv.data) {
     return <Skeleton className="h-[560px] rounded-2xl" />;

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@reos/api";
 import { ListChecks, Plus, Check, Trash2, CalendarDays, User as UserIcon, Sparkles, Loader2 } from "lucide-react";
@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { TaskModal } from "@/components/task-modal";
 import { FadeIn } from "@/components/ui/motion";
+import { useInvalidate } from "@/trpc/invalidate";
 import { cn } from "@/lib/utils";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -61,7 +62,7 @@ function dueLabel(dueAt: Date | null): { text: string; overdue: boolean; today: 
 
 export default function TareasPage() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [showCompleted, setShowCompleted] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -72,10 +73,10 @@ export default function TareasPage() {
   const [followUpMsg, setFollowUpMsg] = useState<string | null>(null);
 
   const setStatus = useMutation(
-    trpc.task.setStatus.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+    trpc.task.setStatus.mutationOptions({ onSuccess: () => invalidate(["task", "dashboard"]) }),
   );
   const remove = useMutation(
-    trpc.task.remove.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+    trpc.task.remove.mutationOptions({ onSuccess: () => invalidate(["task", "dashboard"]) }),
   );
   const followUps = useMutation(
     trpc.ai.runFollowUps.mutationOptions({
@@ -85,7 +86,7 @@ export default function TareasPage() {
             ? "Todo al día: no hay leads sin seguimiento."
             : `La IA generó ${r.created} ${r.created === 1 ? "seguimiento" : "seguimientos"} para leads sin actividad.`,
         );
-        qc.invalidateQueries();
+        invalidate(["task", "dashboard"]);
       },
     }),
   );
@@ -192,7 +193,7 @@ export default function TareasPage() {
         onClose={() => setModalOpen(false)}
         onCreated={() => {
           setModalOpen(false);
-          qc.invalidateQueries();
+          invalidate(["task", "dashboard"]);
         }}
       />
     </div>

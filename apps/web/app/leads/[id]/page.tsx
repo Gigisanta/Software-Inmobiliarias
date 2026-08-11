@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@reos/api";
 import {
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
+import { useInvalidate } from "@/trpc/invalidate";
 import { PipelineStageKey, ScoreBand, OperationType as OperationTypeEnum } from "@reos/core";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,7 +189,7 @@ function formatDuration(seconds?: number | null): string | null {
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
 
   const lead = useQuery(trpc.lead.byId.queryOptions({ id }));
   const stages = useQuery(trpc.pipeline.list.queryOptions());
@@ -202,13 +203,13 @@ export default function LeadDetailPage() {
 
   const changeStage = useMutation(
     trpc.lead.changeStage.mutationOptions({
-      onSuccess: () => qc.invalidateQueries(),
+      onSuccess: () => invalidate(["lead", "pipeline", "dashboard"]),
     }),
   );
 
   const classify = useMutation(
     trpc.lead.update.mutationOptions({
-      onSuccess: () => qc.invalidateQueries(),
+      onSuccess: () => invalidate(["lead", "pipeline", "dashboard"]),
     }),
   );
 
@@ -216,7 +217,7 @@ export default function LeadDetailPage() {
     trpc.ai.classifyLead.mutationOptions({
       onSuccess: (r) => {
         setAiReason(`${r.reason} · Sugerencia: ${r.suggestedAction}`);
-        qc.invalidateQueries();
+        invalidate(["lead", "pipeline", "dashboard"]);
       },
     }),
   );
@@ -334,9 +335,9 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      <EditLeadModal lead={l} open={editOpen} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); qc.invalidateQueries(); }} />
-      <TaskModal open={taskOpen} onClose={() => setTaskOpen(false)} onCreated={() => { setTaskOpen(false); qc.invalidateQueries(); }} presetLeadId={id} />
-      <ApptModal open={apptOpen} editing={null} onClose={() => setApptOpen(false)} onSaved={() => { setApptOpen(false); qc.invalidateQueries(); }} presetLeadId={id} />
+      <EditLeadModal lead={l} open={editOpen} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); invalidate(["lead", "pipeline", "dashboard"]); }} />
+      <TaskModal open={taskOpen} onClose={() => setTaskOpen(false)} onCreated={() => { setTaskOpen(false); invalidate(["task", "lead", "dashboard"]); }} presetLeadId={id} />
+      <ApptModal open={apptOpen} editing={null} onClose={() => setApptOpen(false)} onSaved={() => { setApptOpen(false); invalidate(["appointment", "lead", "dashboard"]); }} presetLeadId={id} />
     </div>
   );
 }

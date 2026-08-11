@@ -1,8 +1,9 @@
 "use client";
 
+import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   House,
   Users,
@@ -15,6 +16,37 @@ import {
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { TenantLogo } from "@/components/tenant-logo";
+
+/**
+ * Prefetch de los datos de una sección al pasar el mouse / enfocar su link.
+ * Al hacer clic, los datos ya están en caché y la pantalla se pinta al instante.
+ * Respeta `staleTime`: no vuelve a pedir lo que ya está fresco.
+ */
+function usePrefetchSection() {
+  const qc = useQueryClient();
+  const trpc = useTRPC();
+
+  return useCallback(
+    (href: string) => {
+      switch (href) {
+        case "/":
+          qc.prefetchQuery(trpc.dashboard.summary.queryOptions());
+          qc.prefetchQuery(trpc.dashboard.today.queryOptions());
+          break;
+        case "/clientes":
+          qc.prefetchQuery(trpc.pipeline.board.queryOptions());
+          break;
+        case "/agenda":
+          qc.prefetchQuery(trpc.appointment.list.queryOptions({ includePast: false }));
+          break;
+        case "/tareas":
+          qc.prefetchQuery(trpc.task.list.queryOptions({ includeCompleted: false }));
+          break;
+      }
+    },
+    [qc, trpc],
+  );
+}
 
 interface NavItem {
   href: string;
@@ -47,6 +79,7 @@ export function isActive(pathname: string, href: string): boolean {
 export function Sidebar() {
   const pathname = usePathname();
   const trpc = useTRPC();
+  const prefetch = usePrefetchSection();
   const { data } = useQuery(trpc.health.me.queryOptions());
   const tenant = data?.tenant;
   const planLabel = tenant?.plan ? (PLAN_LABEL[tenant.plan] ?? "Plan Básico") : "";
@@ -65,6 +98,8 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onMouseEnter={() => prefetch(item.href)}
+              onFocus={() => prefetch(item.href)}
               className={cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
                 "transition-colors duration-[180ms] ease-out",
@@ -107,6 +142,7 @@ export function Sidebar() {
 /** Navegación compacta para pantallas chicas (debajo del header). */
 export function MobileNav() {
   const pathname = usePathname();
+  const prefetch = usePrefetchSection();
 
   return (
     <nav className="flex items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4 py-2 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -117,6 +153,8 @@ export function MobileNav() {
           <Link
             key={item.href}
             href={item.href}
+            onMouseEnter={() => prefetch(item.href)}
+            onFocus={() => prefetch(item.href)}
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium",
               "transition-colors duration-[180ms] ease-out",
