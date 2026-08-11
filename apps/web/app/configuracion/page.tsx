@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, ImagePlus, Loader2, Check, Plus, UserPlus, Shield } from "lucide-react";
+import { Building2, ImagePlus, Loader2, Check, Plus, UserPlus, Shield, Sparkles } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
 import { UserRole } from "@reos/core";
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FadeIn } from "@/components/ui/motion";
-import { initials } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 
 const MAX_LOGO_BYTES = 380 * 1024; // ~380KB → ~500KB en base64.
 
@@ -45,7 +45,12 @@ export default function ConfiguracionPage() {
           <BrandingCard />
         </FadeIn>
         {canManageTeam ? (
-          <FadeIn delay={0.06}>
+          <FadeIn delay={0.05}>
+            <PlanCard />
+          </FadeIn>
+        ) : null}
+        {canManageTeam ? (
+          <FadeIn delay={0.1}>
             <TeamCard />
           </FadeIn>
         ) : null}
@@ -208,6 +213,74 @@ function BrandingCard() {
             )}
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Plan                                                                */
+/* ------------------------------------------------------------------ */
+
+function PlanCard() {
+  const trpc = useTRPC();
+  const qc = useQueryClient();
+  const me = useQuery(trpc.health.me.queryOptions());
+  const plan = me.data?.tenant?.plan ?? "STARTER";
+  const isPro = plan !== "STARTER";
+
+  const setPlan = useMutation(
+    trpc.tenant.setPlan.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Plan y funciones de IA</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className={cn(
+                "grid h-9 w-9 place-items-center rounded-xl",
+                isPro ? "bg-primary-soft text-primary" : "bg-surface-2 text-muted",
+              )}
+            >
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Plan actual: {isPro ? "Pro" : "Básico"}
+              </p>
+              <p className="text-xs text-muted">
+                {isPro
+                  ? "Conversaciones con IA, clasificación automática y seguimientos activos."
+                  : "Activá la vista previa del Pro para probar la IA en tu propia inmobiliaria."}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant={isPro ? "secondary" : "primary"}
+            disabled={setPlan.isPending}
+            onClick={() => setPlan.mutate({ plan: isPro ? "STARTER" : "PRO" })}
+          >
+            {setPlan.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Cambiando…
+              </>
+            ) : isPro ? (
+              "Volver a Básico"
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" /> Activar vista previa Pro
+              </>
+            )}
+          </Button>
+        </div>
+        <p className="rounded-xl bg-surface-2 px-3.5 py-2.5 text-xs text-muted">
+          Vista previa para la demo. La facturación real del plan Pro se coordina aparte.
+        </p>
       </CardContent>
     </Card>
   );

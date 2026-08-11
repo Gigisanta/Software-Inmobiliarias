@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, permissionProcedure } from "../trpc";
 import { Permission } from "@reos/auth";
-import { UserRole } from "@reos/core";
+import { SubscriptionPlan, UserRole } from "@reos/core";
 import * as tenantService from "../services/tenant-service";
 
 const sctx = (ctx: { prisma: any; principal: any }) => ({ prisma: ctx.prisma, principal: ctx.principal });
@@ -52,4 +52,8 @@ export const tenantRouter = router({
   setUserActive: permissionProcedure(Permission.USER_MANAGE)
     .input(z.object({ userId: z.string(), isActive: z.boolean() }))
     .mutation(({ ctx, input }) => tenantService.setUserActive(sctx(ctx), input.userId, input.isActive)),
+
+  setPlan: permissionProcedure(Permission.TENANT_MANAGE)
+    .input(z.object({ plan: z.nativeEnum(SubscriptionPlan) }))
+    .mutation(({ ctx, input }) => tenantService.setPlan(sctx(ctx), input.plan)),
 });

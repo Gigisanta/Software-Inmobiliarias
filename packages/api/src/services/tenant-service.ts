@@ -4,9 +4,27 @@
  */
 import { TRPCError } from "@trpc/server";
 import { writeAudit } from "@reos/db";
-import { AuditAction, UserRole } from "@reos/core";
+import { AuditAction, SubscriptionPlan, UserRole } from "@reos/core";
 import { hashPassword } from "@reos/auth";
 import type { ServiceCtx } from "./types";
+
+/** Cambia el plan de la inmobiliaria (habilita/inhabilita funciones Pro). */
+export async function setPlan(ctx: ServiceCtx, plan: SubscriptionPlan) {
+  const tenant = await ctx.prisma.tenant.update({
+    where: { id: ctx.principal.tenantId },
+    data: { plan },
+    select: { id: true, name: true, plan: true },
+  });
+  await writeAudit(ctx.prisma, {
+    tenantId: ctx.principal.tenantId,
+    actorUserId: ctx.principal.userId,
+    action: AuditAction.UPDATE,
+    entityType: "Tenant",
+    entityId: tenant.id,
+    summary: `Plan cambiado a ${plan}`,
+  });
+  return tenant;
+}
 
 export async function getSettings(ctx: ServiceCtx) {
   const tenant = await ctx.prisma.tenant.findUnique({

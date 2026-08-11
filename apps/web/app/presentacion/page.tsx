@@ -566,7 +566,7 @@ const SCREENS = [
   },
   {
     icon: Columns3,
-    href: "/pipeline",
+    href: "/clientes?vista=tablero",
     name: "Pipeline",
     what: "Cada cliente es una tarjeta que avanza por etapas.",
     solves:
@@ -574,7 +574,7 @@ const SCREENS = [
   },
   {
     icon: Users,
-    href: "/leads",
+    href: "/clientes?vista=lista",
     name: "Leads",
     what: "Todos tus contactos, con su historia completa.",
     solves:
@@ -582,7 +582,7 @@ const SCREENS = [
   },
   {
     icon: Handshake,
-    href: "/oportunidades",
+    href: "/clientes?vista=prioridad",
     name: "Oportunidades",
     what: "A quién llamar primero cada mañana.",
     solves:

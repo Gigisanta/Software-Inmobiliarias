@@ -11,6 +11,11 @@ import { useGuide } from "@/components/guide";
 
 /** Deriva los breadcrumbs desde la ruta actual. */
 function useBreadcrumbs(pathname: string): { label: string; href?: string }[] {
+  // La ficha del lead vive en /leads/[id] pero pertenece a la sección Clientes.
+  if (pathname.startsWith("/leads/")) {
+    return [{ label: "Clientes", href: "/clientes" }, { label: "Ficha" }];
+  }
+
   const section = NAV_ITEMS.find(
     (item) => item.href !== "/" && (pathname === item.href || pathname.startsWith(item.href + "/")),
   );
@@ -19,8 +24,7 @@ function useBreadcrumbs(pathname: string): { label: string; href?: string }[] {
 
   const crumbs: { label: string; href?: string }[] = [{ label: section.label, href: section.href }];
   if (pathname !== section.href) {
-    // Nivel de detalle (p. ej. la ficha de un lead).
-    crumbs.push({ label: section.href === "/leads" ? "Ficha" : "Detalle" });
+    crumbs.push({ label: "Detalle" });
   }
   return crumbs;
 }
@@ -36,7 +40,7 @@ export function Header() {
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
-    router.push(q ? `/leads?q=${encodeURIComponent(q)}` : "/leads");
+    router.push(q ? `/clientes?vista=lista&q=${encodeURIComponent(q)}` : "/clientes?vista=lista");
   }
 
   return (

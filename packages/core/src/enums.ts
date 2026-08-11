@@ -181,3 +181,24 @@ export const OutboxStatus = {
   FAILED: "FAILED",
 } as const;
 export type OutboxStatus = (typeof OutboxStatus)[keyof typeof OutboxStatus];
+
+export const ConversationStatus = {
+  ABIERTA: "ABIERTA",
+  PENDIENTE: "PENDIENTE",
+  RESUELTA: "RESUELTA",
+} as const;
+export type ConversationStatus = (typeof ConversationStatus)[keyof typeof ConversationStatus];
+
+export const MessageDirection = {
+  ENTRANTE: "ENTRANTE",
+  SALIENTE: "SALIENTE",
+} as const;
+export type MessageDirection = (typeof MessageDirection)[keyof typeof MessageDirection];
+
+/** Quién originó el mensaje: el contacto, la IA, o un asesor humano. */
+export const MessageAuthor = {
+  CONTACTO: "CONTACTO",
+  IA: "IA",
+  ASESOR: "ASESOR",
+} as const;
+export type MessageAuthor = (typeof MessageAuthor)[keyof typeof MessageAuthor];

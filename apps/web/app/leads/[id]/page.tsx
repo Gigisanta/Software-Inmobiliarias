@@ -192,10 +192,13 @@ export default function LeadDetailPage() {
 
   const lead = useQuery(trpc.lead.byId.queryOptions({ id }));
   const stages = useQuery(trpc.pipeline.list.queryOptions());
+  const me = useQuery(trpc.health.me.queryOptions());
+  const pro = me.data?.tenant?.plan != null && me.data.tenant.plan !== "STARTER";
 
   const [editOpen, setEditOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [apptOpen, setApptOpen] = useState(false);
+  const [aiReason, setAiReason] = useState<string | null>(null);
 
   const changeStage = useMutation(
     trpc.lead.changeStage.mutationOptions({
@@ -206,6 +209,15 @@ export default function LeadDetailPage() {
   const classify = useMutation(
     trpc.lead.update.mutationOptions({
       onSuccess: () => qc.invalidateQueries(),
+    }),
+  );
+
+  const aiClassify = useMutation(
+    trpc.ai.classifyLead.mutationOptions({
+      onSuccess: (r) => {
+        setAiReason(`${r.reason} · Sugerencia: ${r.suggestedAction}`);
+        qc.invalidateQueries();
+      },
     }),
   );
 
@@ -221,8 +233,8 @@ export default function LeadDetailPage() {
             title="Lead no encontrado"
             description="No pudimos cargar la ficha de este lead. Puede que haya sido eliminado o que el enlace no sea válido."
             action={
-              <Link href="/leads">
-                <Button variant="secondary">Ir a leads</Button>
+              <Link href="/clientes">
+                <Button variant="secondary">Ir a clientes</Button>
               </Link>
             }
           />
@@ -307,6 +319,10 @@ export default function LeadDetailPage() {
               factors={factors}
               onClassify={(band) => classify.mutate({ id, patch: { scoreBand: band } })}
               classifying={classify.isPending}
+              pro={pro}
+              onAiClassify={() => aiClassify.mutate({ leadId: id })}
+              aiPending={aiClassify.isPending}
+              aiReason={aiReason}
             />
           </FadeIn>
           <FadeIn delay={0.1}>
@@ -332,11 +348,11 @@ export default function LeadDetailPage() {
 function BackLink() {
   return (
     <Link
-      href="/leads"
+      href="/clientes"
       className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors duration-[180ms] hover:text-foreground"
     >
       <ArrowLeft className="h-4 w-4" />
-      Volver a leads
+      Volver a clientes
     </Link>
   );
 }
@@ -661,12 +677,20 @@ function ScoreCard({
   factors,
   onClassify,
   classifying,
+  pro,
+  onAiClassify,
+  aiPending,
+  aiReason,
 }: {
   score: number;
   band?: string | null;
   factors: ScoreFactor[] | null;
   onClassify: (band: ScoreBand) => void;
   classifying: boolean;
+  pro: boolean;
+  onAiClassify: () => void;
+  aiPending: boolean;
+  aiReason: string | null;
 }) {
   return (
     <Card>
@@ -682,10 +706,30 @@ function ScoreCard({
           {band && <Badge variant={bandVariant(band)}>{BAND_LABEL[band]}</Badge>}
         </div>
 
+        {/* Clasificación con IA (plan Pro). */}
+        {pro ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Clasificación automática
+              </p>
+              <Button variant="secondary" size="sm" disabled={aiPending} onClick={onAiClassify}>
+                {aiPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Clasificar con IA
+              </Button>
+            </div>
+            {aiReason ? (
+              <p className="mt-2.5 rounded-xl bg-primary-soft/60 px-3.5 py-2.5 text-xs leading-relaxed text-foreground">
+                {aiReason}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Clasificación manual (plan Básico). */}
         <div className="mt-5 border-t border-border pt-5">
           <p className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-muted">
-            <Sparkles className="h-3.5 w-3.5" />
             Clasificar manualmente
           </p>
           <div className="flex items-center gap-1.5">

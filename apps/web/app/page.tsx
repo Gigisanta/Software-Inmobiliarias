@@ -320,7 +320,7 @@ function FunnelCard({ summary, loading }: { summary: SummaryData | undefined; lo
         {loading || !summary
           ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8" />)
           : funnel.map((f) => (
-              <Link key={f.stage.id} href="/pipeline" className="group block">
+              <Link key={f.stage.id} href="/clientes?vista=tablero" className="group block">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-sm text-foreground">{f.stage.name}</span>
                   <span className="shrink-0 text-xs tabular-nums text-muted">

@@ -5,9 +5,7 @@ import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   House,
-  Columns3,
   Users,
-  Handshake,
   CalendarDays,
   MessageSquareText,
   ListChecks,
@@ -26,9 +24,7 @@ interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Hoy", icon: House },
-  { href: "/pipeline", label: "Pipeline", icon: Columns3 },
-  { href: "/leads", label: "Leads", icon: Users },
-  { href: "/oportunidades", label: "Oportunidades", icon: Handshake },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/conversaciones", label: "Conversaciones", icon: MessageSquareText },
   { href: "/tareas", label: "Tareas", icon: ListChecks },

@@ -51,3 +51,18 @@ export function permissionProcedure(permission: Permission) {
     return next({ ctx });
   });
 }
+
+/** Requiere que la inmobiliaria tenga un plan Pro o superior (funciones de IA). */
+export const proProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  const tenant = await ctx.prisma.tenant.findUnique({
+    where: { id: ctx.principal.tenantId },
+    select: { plan: true },
+  });
+  if (!tenant || tenant.plan === "STARTER") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Esta función es parte del plan Pro.",
+    });
+  }
+  return next({ ctx });
+});

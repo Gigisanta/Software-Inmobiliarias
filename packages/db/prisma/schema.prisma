@@ -320,6 +320,7 @@ model Lead {
   tasks            Task[]
   appointments     Appointment[]
   propertyInterests LeadPropertyInterest[]
+  conversations    Conversation[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -484,4 +485,71 @@ model OutboxEvent {
   @@index([status, availableAt])
   @@index([tenantId])
   @@map("outbox_events")
+}
+
+// ============================================================
+//  Conversaciones (plan Pro): bandeja unificada + IA
+// ============================================================
+
+enum ConversationStatus {
+  ABIERTA
+  PENDIENTE
+  RESUELTA
+}
+
+enum MessageDirection {
+  ENTRANTE
+  SALIENTE
+}
+
+enum MessageAuthor {
+  CONTACTO
+  IA
+  ASESOR
+}
+
+model Conversation {
+  id                 String             @id @default(cuid())
+  tenantId           String
+  leadId             String?
+  channel            LeadChannel        @default(WHATSAPP)
+  status             ConversationStatus @default(ABIERTA)
+  assignedToId       String?
+  // Datos del contacto (antes de existir un lead formal).
+  contactName        String?
+  contactPhone       String?
+  lastMessageAt      DateTime           @default(now())
+  lastMessagePreview String?
+  unreadCount        Int                @default(0)
+  // IA: auto-respuesta activada para esta conversación.
+  aiEnabled          Boolean            @default(true)
+  // Derivación inteligente: la IA marcó que necesita a un humano.
+  needsHuman         Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, lastMessageAt])
+  @@index([tenantId, assignedToId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  tenantId       String
+  conversationId String
+  direction      MessageDirection
+  author         MessageAuthor
+  body           String
+  createdAt      DateTime         @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }

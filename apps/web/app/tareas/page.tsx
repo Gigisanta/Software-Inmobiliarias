@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@reos/api";
-import { ListChecks, Plus, Check, Trash2, CalendarDays, User as UserIcon } from "lucide-react";
+import { ListChecks, Plus, Check, Trash2, CalendarDays, User as UserIcon, Sparkles, Loader2 } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
 import { TaskStatus } from "@reos/core";
@@ -66,13 +66,28 @@ export default function TareasPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const tasks = useQuery(trpc.task.list.queryOptions({ includeCompleted: showCompleted }));
+  const me = useQuery(trpc.health.me.queryOptions());
+  const pro = me.data?.tenant?.plan != null && me.data.tenant.plan !== "STARTER";
   const items = tasks.data ?? [];
+  const [followUpMsg, setFollowUpMsg] = useState<string | null>(null);
 
   const setStatus = useMutation(
     trpc.task.setStatus.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
   );
   const remove = useMutation(
     trpc.task.remove.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+  );
+  const followUps = useMutation(
+    trpc.ai.runFollowUps.mutationOptions({
+      onSuccess: (r) => {
+        setFollowUpMsg(
+          r.created === 0
+            ? "Todo al día: no hay leads sin seguimiento."
+            : `La IA generó ${r.created} ${r.created === 1 ? "seguimiento" : "seguimientos"} para leads sin actividad.`,
+        );
+        qc.invalidateQueries();
+      },
+    }),
   );
 
   const groups = useMemo(() => groupTasks(items), [items]);
@@ -83,12 +98,31 @@ export default function TareasPage() {
         title="Tareas"
         subtitle="Seguimientos, llamadas y documentación, en orden"
         actions={
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Nueva tarea
-          </Button>
+          <div className="flex items-center gap-2">
+            {pro ? (
+              <Button variant="secondary" disabled={followUps.isPending} onClick={() => followUps.mutate({})}>
+                {followUps.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Seguimientos con IA
+              </Button>
+            ) : null}
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nueva tarea
+            </Button>
+          </div>
         }
       />
+
+      {followUpMsg ? (
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-primary-soft px-3.5 py-2.5 text-sm text-primary">
+          <Sparkles className="h-4 w-4" />
+          {followUpMsg}
+        </div>
+      ) : null}
 
       <div className="mb-5 flex items-center gap-2">
         <FilterChip active={!showCompleted} onClick={() => setShowCompleted(false)}>

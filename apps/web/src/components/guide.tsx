@@ -16,9 +16,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
   House,
-  Columns3,
   Users,
-  Handshake,
   CalendarDays,
   MessageSquareText,
   ListChecks,
@@ -56,28 +54,12 @@ export const GUIDE: GuideEntry[] = [
       "Reemplaza al cuaderno y a la memoria: abrís el sistema a la mañana y ya sabés qué hacer primero.",
   },
   {
-    route: "/pipeline",
-    name: "Pipeline",
-    icon: Columns3,
-    what: "Cada cliente es una tarjeta que avanza por etapas, de «Nuevo» a «Vendido». Se mueve arrastrando con el mouse.",
-    solves:
-      "Con un vistazo sabés en qué está cada operación y cuánta plata hay en juego en cada etapa. Nada queda en el aire.",
-  },
-  {
-    route: "/leads",
-    name: "Leads",
+    route: "/clientes",
+    name: "Clientes",
     icon: Users,
-    what: "Todos tus contactos ordenados por prioridad, con su ficha completa: qué buscan, cuánto tienen, qué visitaron.",
+    what: "Todos tus contactos y operaciones en un solo lugar, con tres vistas: Tablero (arrastrás por etapas), Lista (buscás y filtrás) y Prioridad (los más calientes primero).",
     solves:
-      "Se acabó buscar en chats viejos quién era cada persona: tocás un nombre y tenés toda su historia.",
-  },
-  {
-    route: "/oportunidades",
-    name: "Oportunidades",
-    icon: Handshake,
-    what: "El sistema ordena tus contactos por probabilidad de cierre y te sugiere la próxima acción para cada uno.",
-    solves:
-      "Empezás el día llamando al que está por decidir, no al último que escribió. Tu tiempo va donde está la venta.",
+      "Sabés en qué está cada operación, tenés la ficha completa de cada persona y empezás el día llamando al que está por decidir. Todo sin cambiar de pantalla.",
   },
   {
     route: "/agenda",
@@ -90,15 +72,15 @@ export const GUIDE: GuideEntry[] = [
     route: "/conversaciones",
     name: "Conversaciones",
     icon: MessageSquareText,
-    what: "Todos los chats de WhatsApp de la inmobiliaria en una sola bandeja (próximamente).",
+    what: "Todos los chats de WhatsApp de la inmobiliaria en una sola bandeja, con IA que responde y clasifica (plan Pro).",
     solves:
-      "Vas a ver cada conversación que manejó el asistente y retomarla donde la dejó, desde la computadora.",
+      "Ves cada conversación que manejó el asistente y la retomás donde la dejó, desde la computadora.",
   },
   {
     route: "/tareas",
     name: "Tareas",
     icon: ListChecks,
-    what: "Los pendientes que hacen avanzar cada operación: llamar, enviar documentación, coordinar (próximamente).",
+    what: "Los pendientes que hacen avanzar cada operación: llamar, enviar documentación, coordinar.",
     solves: "Cada seguimiento con fecha y responsable. Si algo vence, el sistema te lo recuerda — no tu memoria.",
   },
 ];

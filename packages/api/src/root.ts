@@ -6,6 +6,8 @@ import { dashboardRouter } from "./routers/dashboard";
 import { taskRouter } from "./routers/task";
 import { appointmentRouter } from "./routers/appointment";
 import { tenantRouter } from "./routers/tenant";
+import { conversationRouter } from "./routers/conversation";
+import { aiRouter } from "./routers/ai";
 
 export const appRouter = router({
   health: healthRouter,
@@ -15,6 +17,8 @@ export const appRouter = router({
   task: taskRouter,
   appointment: appointmentRouter,
   tenant: tenantRouter,
+  conversation: conversationRouter,
+  ai: aiRouter,
 });
 
 export type AppRouter = typeof appRouter;
