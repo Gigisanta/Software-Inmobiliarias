@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@reos/api";
 import {
@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { ApptModal } from "@/components/appt-modal";
 import { FadeIn } from "@/components/ui/motion";
+import { useInvalidate } from "@/trpc/invalidate";
 import { cn } from "@/lib/utils";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -66,7 +67,7 @@ function timeOf(d: Date): string {
 
 export default function AgendaPage() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Appt | null>(null);
   const [includePast, setIncludePast] = useState(false);
@@ -75,10 +76,10 @@ export default function AgendaPage() {
   const items = appts.data ?? [];
 
   const setStatus = useMutation(
-    trpc.appointment.setStatus.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+    trpc.appointment.setStatus.mutationOptions({ onSuccess: () => invalidate(["appointment", "dashboard"]) }),
   );
   const remove = useMutation(
-    trpc.appointment.remove.mutationOptions({ onSuccess: () => qc.invalidateQueries() }),
+    trpc.appointment.remove.mutationOptions({ onSuccess: () => invalidate(["appointment", "dashboard"]) }),
   );
 
   const groups = useMemo(() => {
@@ -177,7 +178,7 @@ export default function AgendaPage() {
         onClose={() => setModalOpen(false)}
         onSaved={() => {
           setModalOpen(false);
-          qc.invalidateQueries();
+          invalidate(["appointment", "dashboard"]);
         }}
       />
     </div>

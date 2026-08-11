@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@reos/api";
 import { Columns3, GripVertical } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
+import { useInvalidate } from "@/trpc/invalidate";
 import { PipelineStageKey } from "@reos/core";
 
 import { Badge, bandVariant, BAND_LABEL } from "@/components/ui/badge";
@@ -30,12 +31,12 @@ function nextAction(band?: string | null): string {
 /** Vista Tablero: kanban del pipeline con arrastrar y soltar. */
 export function PipelineBoard() {
   const trpc = useTRPC();
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const board = useQuery(trpc.pipeline.board.queryOptions());
 
   const changeStage = useMutation(
     trpc.lead.changeStage.mutationOptions({
-      onSuccess: () => qc.invalidateQueries(),
+      onSuccess: () => invalidate(["pipeline", "lead", "dashboard"]),
     }),
   );
 
@@ -148,7 +149,20 @@ function StageColumn({
   );
 }
 
-function KanbanCard({ lead, stageKey, isMoving }: { lead: BoardLead; stageKey: string; isMoving: boolean }) {
+/**
+ * Tarjeta del kanban memoizada: al arrastrar cambia `dragOverStage` en el tablero,
+ * pero como no es prop de la tarjeta, `memo` evita re-renderizar todas las tarjetas
+ * en cada evento de arrastre (arrastre fluido con muchas operaciones).
+ */
+const KanbanCard = memo(function KanbanCard({
+  lead,
+  stageKey,
+  isMoving,
+}: {
+  lead: BoardLead;
+  stageKey: string;
+  isMoving: boolean;
+}) {
   const router = useRouter();
   const [dragging, setDragging] = useState(false);
   const budget = lead.budgetMax != null ? formatMoney(String(lead.budgetMax), lead.currency) : null;
@@ -202,7 +216,7 @@ function KanbanCard({ lead, stageKey, isMoving }: { lead: BoardLead; stageKey: s
       <p className="mt-2 text-[11px] font-medium text-primary">{nextAction(lead.scoreBand)}</p>
     </article>
   );
-}
+});
 
 function BoardSkeleton() {
   return (

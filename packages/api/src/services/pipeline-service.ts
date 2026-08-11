@@ -44,6 +44,51 @@ export async function ensureDefaultPipeline(ctx: ServiceCtx) {
 }
 
 /**
+ * Embudo del dashboard: por etapa, cantidad y valor potencial, SIN traer los
+ * leads individuales. Usa un `groupBy` en la base (agrega ahí) en lugar de
+ * descargar todos los leads abiertos — payload y trabajo mínimos para la home.
+ */
+export async function getFunnel(ctx: ServiceCtx) {
+  const seeAll = canSeeAllLeads(ctx.principal.role);
+  const leadWhere: Prisma.LeadWhereInput = {
+    tenantId: ctx.principal.tenantId,
+    status: "OPEN",
+    ...(seeAll ? {} : { assignedToId: ctx.principal.userId }),
+  };
+
+  const [stages, grouped] = await Promise.all([
+    ctx.prisma.pipelineStage.findMany({
+      where: { tenantId: ctx.principal.tenantId, isLost: false },
+      orderBy: { order: "asc" },
+    }),
+    ctx.prisma.lead.groupBy({
+      by: ["currentStageId"],
+      where: leadWhere,
+      _count: { _all: true },
+      _sum: { budgetMax: true },
+    }),
+  ]);
+
+  const byStage = new Map(grouped.map((g) => [g.currentStageId, g]));
+
+  return stages.map((stage) => {
+    const g = byStage.get(stage.id);
+    const sumMax = g?._sum.budgetMax ? Number(g._sum.budgetMax) : 0;
+    return {
+      stage: {
+        id: stage.id,
+        key: stage.key,
+        name: stage.name,
+        order: stage.order,
+        probability: stage.probability,
+      },
+      count: g?._count._all ?? 0,
+      potentialValue: Math.round((sumMax * stage.probability) / 100),
+    };
+  });
+}
+
+/**
  * Arma el tablero Kanban: cada etapa con sus leads (respetando el alcance del rol),
  * conteo y valor potencial estimado (sumatoria de budgetMax ponderado por probabilidad).
  */

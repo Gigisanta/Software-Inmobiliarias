@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -189,7 +189,12 @@ function StageChip({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function LeadsTable({ items }: { items: LeadListItem[] }) {
+/**
+ * Tabla memoizada: mientras se tipea en el buscador cambia el estado del padre,
+ * pero `items` no cambia hasta que la query (con debounce) trae datos nuevos, así
+ * que `memo` evita re-renderizar las filas en cada tecla.
+ */
+const LeadsTable = memo(function LeadsTable({ items }: { items: LeadListItem[] }) {
   const router = useRouter();
 
   return (
@@ -271,7 +276,7 @@ function LeadsTable({ items }: { items: LeadListItem[] }) {
       </TBody>
     </Table>
   );
-}
+});
 
 function formatBudget(min: string | null, max: string | null, currency: string): string | null {
   const hasMin = min != null && min.trim() !== "";

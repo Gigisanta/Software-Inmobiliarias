@@ -4,7 +4,7 @@
 import { Prisma } from "@reos/db";
 import { canSeeAllLeads } from "@reos/auth";
 import type { ServiceCtx } from "./types";
-import { getBoard } from "./pipeline-service";
+import { getFunnel } from "./pipeline-service";
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -37,7 +37,7 @@ export async function getSummary(ctx: ServiceCtx) {
       : Promise.resolve(0),
     ctx.prisma.lead.count({ where: { ...scope, createdAt: { gte: startOfToday() } } }),
     ctx.prisma.lead.count({ where: { ...scope, status: "OPEN", scoreBand: "CALIENTE" } }),
-    getBoard(ctx),
+    getFunnel(ctx),
     ctx.prisma.user.count({ where: { tenantId: ctx.principal.tenantId, isActive: true } }),
   ]);
 

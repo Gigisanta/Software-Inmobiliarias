@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Plus, Columns3, List, Flame, type LucideIcon } from "lucide-react";
+import { useInvalidate } from "@/trpc/invalidate";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -26,16 +26,18 @@ const SUBTITLES: Record<View, string> = {
   prioridad: "Los de mayor probabilidad de cierre, primero",
 };
 
-export default function ClientesPage() {
-  const qc = useQueryClient();
-  const [view, setView] = useState<View>("tablero");
-  const [newOpen, setNewOpen] = useState(false);
+/** Lee la vista inicial desde "?vista=" en el primer render (evita un render y
+ *  la carga del tablero cuando se entra directo a Lista o Prioridad). */
+function initialView(): View {
+  if (typeof window === "undefined") return "tablero";
+  const v = new URLSearchParams(window.location.search).get("vista");
+  return v === "tablero" || v === "lista" || v === "prioridad" ? v : "tablero";
+}
 
-  // Toma la vista inicial de "?vista=" (sin useSearchParams para evitar Suspense).
-  useEffect(() => {
-    const v = new URLSearchParams(window.location.search).get("vista");
-    if (v === "tablero" || v === "lista" || v === "prioridad") setView(v);
-  }, []);
+export default function ClientesPage() {
+  const invalidate = useInvalidate();
+  const [view, setView] = useState<View>(initialView);
+  const [newOpen, setNewOpen] = useState(false);
 
   function changeView(v: View) {
     setView(v);
@@ -88,7 +90,7 @@ export default function ClientesPage() {
         onClose={() => setNewOpen(false)}
         onCreated={() => {
           setNewOpen(false);
-          qc.invalidateQueries();
+          invalidate(["lead", "pipeline", "dashboard"]);
         }}
       />
     </div>
