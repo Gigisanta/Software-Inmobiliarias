@@ -56,16 +56,36 @@ export interface CreateTaskInput {
   assignedToId?: string | null;
 }
 
-async function assertLeadInTenant(ctx: ServiceCtx, leadId: string) {
-  const lead = await ctx.prisma.lead.findUnique({ where: { id: leadId }, select: { tenantId: true } });
+/** Valida que el lead pertenezca al tenant y esté dentro del alcance del rol. */
+async function assertLeadInScope(ctx: ServiceCtx, leadId: string) {
+  const lead = await ctx.prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { tenantId: true, assignedToId: true },
+  });
   if (!lead || lead.tenantId !== ctx.principal.tenantId) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "El lead no pertenece a la inmobiliaria." });
   }
+  if (!canSeeAllLeads(ctx.principal.role) && lead.assignedToId !== ctx.principal.userId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "No tenés acceso a este lead." });
+  }
+}
+
+/** Resuelve el responsable de una tarea, validando que pertenezca al tenant. */
+async function resolveAssignee(ctx: ServiceCtx, assignedToId: string | null | undefined): Promise<string> {
+  if (!assignedToId) return ctx.principal.userId;
+  const user = await ctx.prisma.user.findUnique({
+    where: { id: assignedToId },
+    select: { tenantId: true },
+  });
+  if (!user || user.tenantId !== ctx.principal.tenantId) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "El responsable no pertenece a la inmobiliaria." });
+  }
+  return assignedToId;
 }
 
 export async function createTask(ctx: ServiceCtx, input: CreateTaskInput) {
-  if (input.leadId) await assertLeadInTenant(ctx, input.leadId);
-  const assignedToId = input.assignedToId ?? ctx.principal.userId;
+  if (input.leadId) await assertLeadInScope(ctx, input.leadId);
+  const assignedToId = await resolveAssignee(ctx, input.assignedToId);
 
   return ctx.prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
@@ -124,7 +144,7 @@ export interface UpdateTaskInput {
 
 export async function updateTask(ctx: ServiceCtx, id: string, patch: UpdateTaskInput) {
   await loadTask(ctx, id);
-  if (patch.leadId) await assertLeadInTenant(ctx, patch.leadId);
+  if (patch.leadId) await assertLeadInScope(ctx, patch.leadId);
 
   const data: Prisma.TaskUpdateInput = {
     ...(patch.title !== undefined ? { title: patch.title } : {}),

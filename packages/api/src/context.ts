@@ -31,9 +31,12 @@ export interface Context {
 }
 
 async function resolveDevPrincipal(headers: Headers): Promise<AuthPrincipal | null> {
-  // El stub exige opt-in explícito (DEV_AUTH=true) y se desactiva apenas
-  // Clerk está configurado. Esto permite la demo pública en Vercel; quitar
-  // DEV_AUTH del entorno cuando el sistema maneje datos reales.
+  // ⚠️ Backdoor de demo: da acceso sin sesión al tenant demo mediante headers.
+  // Se blinda en tres niveles para que NUNCA pueda quedar activo con datos reales:
+  //  1. Jamás en producción, sin importar cómo estén las demás variables.
+  //  2. Se desactiva apenas Clerk está configurado.
+  //  3. Exige opt-in explícito (DEV_AUTH=true).
+  if (process.env.NODE_ENV === "production") return null;
   if (process.env.CLERK_SECRET_KEY) return null;
   if (process.env.DEV_AUTH !== "true") return null;
 

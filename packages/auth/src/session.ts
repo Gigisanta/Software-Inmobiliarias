@@ -10,12 +10,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 /** Nombre de la cookie de sesión. */
 export const SESSION_COOKIE = "reos_session";
 
-/** Duración por defecto de la sesión: 30 días. */
-export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+/** Duración por defecto de la sesión: 7 días (equilibra comodidad y exposición). */
+export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 export interface SessionPayload {
   uid: string;
   exp: number;
+  /**
+   * Época de la contraseña (epoch en segundos de `passwordChangedAt`). Permite
+   * revocar todas las sesiones previas al cambiar la contraseña: si no coincide
+   * con la de la base, el token se considera inválido.
+   */
+  pca?: number;
 }
 
 function getSecret(): string {
@@ -32,11 +38,21 @@ function sign(body: string): string {
   return createHmac("sha256", getSecret()).update(body).digest("base64url");
 }
 
+export interface CreateSessionOptions {
+  ttlSeconds?: number;
+  /** Marca del último cambio de contraseña, para atar la sesión a esa época. */
+  passwordChangedAt?: Date | null;
+}
+
 /** Crea un token de sesión firmado para un userId. */
-export function createSessionToken(uid: string, ttlSeconds = SESSION_TTL_SECONDS): string {
+export function createSessionToken(uid: string, options: CreateSessionOptions = {}): string {
+  const ttlSeconds = options.ttlSeconds ?? SESSION_TTL_SECONDS;
   const payload: SessionPayload = {
     uid,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+    ...(options.passwordChangedAt
+      ? { pca: Math.floor(options.passwordChangedAt.getTime() / 1000) }
+      : {}),
   };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${body}.${sign(body)}`;
