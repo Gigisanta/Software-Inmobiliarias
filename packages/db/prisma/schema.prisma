@@ -220,6 +220,13 @@ model User {
   branchId    String?
   isActive    Boolean   @default(true)
   lastActiveAt DateTime?
+  // --- Seguridad de credenciales y sesión ---
+  // Contador de intentos fallidos consecutivos (se reinicia al loguear con éxito).
+  failedLoginAttempts Int      @default(0)
+  // Bloqueo temporal de la cuenta tras superar el umbral de intentos.
+  lockedUntil         DateTime?
+  // Marca de tiempo del último cambio de contraseña: invalida sesiones anteriores.
+  passwordChangedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

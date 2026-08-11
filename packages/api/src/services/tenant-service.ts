@@ -5,8 +5,11 @@
 import { TRPCError } from "@trpc/server";
 import { writeAudit } from "@reos/db";
 import { AuditAction, SubscriptionPlan, UserRole } from "@reos/core";
-import { hashPassword } from "@reos/auth";
+import { hashPassword, validatePasswordStrength } from "@reos/auth";
 import type { ServiceCtx } from "./types";
+
+/** Roles con privilegios elevados: solo un OWNER puede crearlos o asignarlos. */
+const PRIVILEGED_ROLES: UserRole[] = [UserRole.OWNER, UserRole.ADMIN];
 
 /** Cambia el plan de la inmobiliaria (habilita/inhabilita funciones Pro). */
 export async function setPlan(ctx: ServiceCtx, plan: SubscriptionPlan) {
@@ -93,6 +96,20 @@ export interface CreateUserInput {
 export async function createUser(ctx: ServiceCtx, input: CreateUserInput) {
   const email = input.email.trim().toLowerCase();
 
+  // Anti-escalada: crear un OWNER o ADMIN requiere ser OWNER.
+  if (PRIVILEGED_ROLES.includes(input.role) && ctx.principal.role !== UserRole.OWNER) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Solo el dueño de la cuenta puede crear usuarios con rol de administrador.",
+    });
+  }
+
+  // Política de contraseña (defensa en profundidad, además de la validación del router).
+  const weak = validatePasswordStrength(input.password);
+  if (weak) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: weak });
+  }
+
   const existing = await ctx.prisma.user.findUnique({
     where: { tenantId_email: { tenantId: ctx.principal.tenantId, email } },
   });
@@ -115,6 +132,7 @@ export async function createUser(ctx: ServiceCtx, input: CreateUserInput) {
       role: input.role,
       branchId: branch?.id ?? null,
       passwordHash: hashPassword(input.password),
+      passwordChangedAt: new Date(),
     },
     select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true },
   });

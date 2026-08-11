@@ -9,6 +9,28 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 const KEYLEN = 64;
 const PREFIX = "scrypt";
 
+/** Longitud mínima y máxima de contraseña aceptada. */
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 200;
+
+/**
+ * Valida la fortaleza de una contraseña. Devuelve un mensaje de error si no
+ * cumple la política, o null si es válida. Exige longitud mínima y una mezcla
+ * de letras y números (equilibrio entre seguridad y usabilidad para el rubro).
+ */
+export function validatePasswordStrength(password: string): string | null {
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`;
+  }
+  if (password.length > PASSWORD_MAX_LENGTH) {
+    return `La contraseña no puede superar los ${PASSWORD_MAX_LENGTH} caracteres.`;
+  }
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return "La contraseña debe combinar letras y números.";
+  }
+  return null;
+}
+
 /** Genera un hash salado para almacenar. */
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");

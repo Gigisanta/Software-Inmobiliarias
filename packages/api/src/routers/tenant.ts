@@ -22,6 +22,10 @@ export const tenantRouter = router({
         logoUrl: z
           .string()
           .max(MAX_LOGO_CHARS, "La imagen es demasiado grande (máx. ~400KB).")
+          .refine(
+            (v) => /^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);base64,/.test(v) || /^https:\/\//.test(v),
+            "El logo debe ser una imagen (data URL de imagen o URL https).",
+          )
           .nullable()
           .optional(),
         brandColor: z
@@ -44,7 +48,12 @@ export const tenantRouter = router({
         firstName: z.string().trim().min(1, "El nombre es obligatorio."),
         lastName: z.string().trim().optional(),
         role: z.nativeEnum(UserRole),
-        password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+        password: z
+          .string()
+          .min(8, "La contraseña debe tener al menos 8 caracteres.")
+          .max(200, "La contraseña es demasiado larga.")
+          .regex(/[a-zA-Z]/, "La contraseña debe incluir letras.")
+          .regex(/[0-9]/, "La contraseña debe incluir números."),
       }),
     )
     .mutation(({ ctx, input }) => tenantService.createUser(sctx(ctx), input)),

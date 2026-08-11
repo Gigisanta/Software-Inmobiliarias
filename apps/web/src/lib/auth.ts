@@ -27,6 +27,13 @@ export async function resolveSessionPrincipal(req: Request): Promise<AuthPrincip
   const user = await prisma.user.findUnique({ where: { id: payload.uid } });
   if (!user || !user.isActive) return null;
 
+  // Invalidación por cambio de contraseña: si el usuario cambió su clave después
+  // de emitido el token, la época no coincide y la sesión se considera revocada.
+  if (user.passwordChangedAt) {
+    const currentPca = Math.floor(user.passwordChangedAt.getTime() / 1000);
+    if (payload.pca !== currentPca) return null;
+  }
+
   return {
     userId: user.id,
     tenantId: user.tenantId,
