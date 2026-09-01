@@ -31,6 +31,7 @@ try {
 /** maatwork-brand-metadata: maatwork-mw-20260901 */
 const maatWorkBrandMetadata: Metadata = {
   metadataBase: new URL("https://realestate-os-demo.vercel.app"),
+  alternates: { canonical: '/' },
   icons: {
     icon: [
       { url: '/icon-mw.svg?v=maatwork-mw-20260901', type: 'image/svg+xml' },
