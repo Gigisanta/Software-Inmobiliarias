@@ -1,3 +1,8 @@
+<!-- maatwork-brand:maatwork-mw-20260901 -->
+<p align="center"><img src="docs/brand/software-inmobiliarias-cover.png" alt="RealEstate OS · MaatWork" width="1200"></p>
+
+> Sistema operativo inmobiliario
+
 # RealEstate OS 🏠
 
 > **El Sistema Operativo para Inmobiliarias.** Plataforma SaaS multi-tenant centrada en el **lead** (no en la propiedad): pipeline comercial, lead scoring explicable, centro de operaciones en tiempo real y automatizaciones.
